@@ -134,7 +134,7 @@ async function generateContentWithModelFallback({ contents, config, purpose }) {
   throw lastError || new Error('No available Gemini text model');
 }
 
-function normalizeInterleavedBlocks(scene, outputMode) {
+export function normalizeInterleavedBlocks(scene, outputMode) {
   if (!scene || typeof scene !== 'object') return [];
 
   const isEnglish = outputMode === 'judge_en';

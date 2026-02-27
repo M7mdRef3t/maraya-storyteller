@@ -190,4 +190,25 @@ Return JSON only:
 {"detected_emotion":"...","space_reading":"..."}`;
 }
 
+export function buildFallbackChoices(outputMode) {
+  if (outputMode === 'judge_en') {
+    return [
+      { text_ar: 'Walk toward the brighter corridor and face what is waiting.', emotion_shift: 'hope' },
+      { text_ar: 'Stay still and listen to the echo before moving.', emotion_shift: 'nostalgia' },
+    ];
+  }
+
+  if (outputMode === 'ar_egyptian') {
+    return [
+      { text_ar: 'تتحرك نحية الممر المنوّر وتواجه اللي مستنيك.', emotion_shift: 'hope' },
+      { text_ar: 'تفضل مكانك شوية وتسمع صدى المكان قبل ما تتحرك.', emotion_shift: 'nostalgia' },
+    ];
+  }
+
+  return [
+    { text_ar: 'تمضي نحو الممر الأكثر نورًا وتواجه ما ينتظرك.', emotion_shift: 'hope' },
+    { text_ar: 'تتريّث لحظة وتنصت لصدى المكان قبل المتابعة.', emotion_shift: 'nostalgia' },
+  ];
+}
+
 export { STYLE_MAP, AUDIO_MOODS, OUTPUT_MODE_CONFIG };

@@ -17,7 +17,7 @@ const KIND_LABELS = {
   },
 };
 
-function normalizeBlocks(blocks, fallbackText) {
+export function normalizeBlocks(blocks, fallbackText) {
   if (Array.isArray(blocks) && blocks.length > 0) {
     const normalized = blocks
       .map((block) => {

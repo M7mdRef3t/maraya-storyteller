@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { logError } from '../logger.js';
 
 let ai = null;
 let activeStrategy = null;
@@ -215,10 +216,10 @@ export async function generateImage(prompt) {
     }
 
     globalBackoffUntil = Date.now() + 60000;
-    console.error('[maraya-imagen] All image generation strategies failed:', failures.join(' | '));
+    logError('[maraya-imagen] All image generation strategies failed:', failures.join(' | '));
     return null;
   } catch (error) {
-    console.error('[maraya-imagen] Image generation failed:', error.message);
+    logError('[maraya-imagen] Image generation failed:', error.message);
     return null;
   }
 }

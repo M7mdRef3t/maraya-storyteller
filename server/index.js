@@ -13,6 +13,7 @@ import {
   buildSpaceAnalysisPrompt,
   normalizeOutputMode,
 } from './prompts/storyteller.js';
+import { log, logDebug, logError } from './logger.js';
 
 dotenv.config();
 
@@ -20,10 +21,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase();
-const isDebug = LOG_LEVEL === 'debug';
-const log = (...args) => console.log('[maraya]', ...args);
-const logDebug = (...args) => { if (isDebug) console.log('[maraya:debug]', ...args); };
-const logError = (...args) => console.error('[maraya:error]', ...args);
 
 const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) {
@@ -224,7 +221,7 @@ wss.on('connection', (ws) => {
     } catch (error) {
       const uiStrings = buildUiStrings(currentOutputMode);
       logError('Error starting story:', error.message);
-      logError('Full error:', error.stack || error);
+      logDebug('Full error:', error);
       sendMessage('error', { message: `${uiStrings.startErrorPrefix} ${error.message}` });
     }
   };

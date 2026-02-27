@@ -7,6 +7,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { uniqueNonEmpty } from './utils.js';
+import { log, logDebug } from '../logger.js';
 
 let ai = null;
 
@@ -115,7 +116,7 @@ async function generateContentWithModelFallback({ contents, config, purpose }) {
 
   for (const model of models) {
     try {
-      console.log(`[gemini] ${purpose} with model:`, model);
+      logDebug(`[gemini] ${purpose} with model:`, model);
       return await ai.models.generateContent({
         model,
         contents,
@@ -126,7 +127,7 @@ async function generateContentWithModelFallback({ contents, config, purpose }) {
       if (!isModelUnavailableError(error)) {
         throw error;
       }
-      console.warn(`[gemini] Model unavailable for ${purpose}: ${model} -> ${error.message}`);
+      log(`[gemini] Model unavailable for ${purpose}: ${model} -> ${error.message}`);
     }
   }
 
@@ -227,7 +228,7 @@ function normalizeScene(scene, index, outputMode) {
 export async function generateScenes(systemPrompt, conversationHistory, outputMode = 'ar_fusha') {
   if (!ai) throw new Error('Gemini not initialized');
 
-  console.log('[gemini] Conversation history length:', conversationHistory.length);
+  logDebug('[gemini] Conversation history length:', conversationHistory.length);
 
   const response = await generateContentWithModelFallback({
     purpose: 'scene generation',
@@ -242,8 +243,8 @@ export async function generateScenes(systemPrompt, conversationHistory, outputMo
   });
 
   const text = response.text;
-  console.log('[gemini] Response received, length:', text?.length || 0);
-  console.log('[gemini] First 200 chars:', text?.substring(0, 200));
+  logDebug('[gemini] Response received, length:', text?.length || 0);
+  logDebug('[gemini] First 200 chars:', text?.substring(0, 200));
 
   let parsed;
   try {
@@ -257,7 +258,7 @@ export async function generateScenes(systemPrompt, conversationHistory, outputMo
     .map((scene, index) => normalizeScene(scene, index, outputMode))
     .filter(Boolean);
 
-  console.log('[gemini] Parsed scenes count:', scenes.length);
+  logDebug('[gemini] Parsed scenes count:', scenes.length);
   return scenes;
 }
 

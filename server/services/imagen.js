@@ -222,19 +222,3 @@ export async function generateImage(prompt) {
     return null;
   }
 }
-
-/**
- * Generate images for multiple scenes in parallel
- * @returns {Promise<Map<string, {base64: string, mimeType: string} | null>>}
- */
-export async function generateImagesForScenes(scenes) {
-  const results = new Map();
-
-  const promises = scenes.map(async (scene) => {
-    const image = await generateImage(scene.image_prompt);
-    results.set(scene.scene_id, image);
-  });
-
-  await Promise.allSettled(promises);
-  return results;
-}

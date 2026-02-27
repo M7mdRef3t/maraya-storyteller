@@ -31,11 +31,6 @@ function uniqueNonEmpty(values) {
   return [...new Set(values.map((value) => (value || '').trim()).filter(Boolean))];
 }
 
-function normalizeModelName(name) {
-  if (!name || typeof name !== 'string') return '';
-  return name.replace(/^models\//, '').trim();
-}
-
 function shouldRetryWithAnotherModel(error) {
   const message = String(error?.message || '').toLowerCase();
   return (
@@ -125,42 +120,9 @@ function buildStrategyCandidates() {
 async function resolveStrategyQueue() {
   if (strategyQueuePromise) return strategyQueuePromise;
 
-  strategyQueuePromise = (async () => {
-    const candidates = buildStrategyCandidates();
-    try {
-      const pager = await ai.models.list({ config: { pageSize: 200 } });
-      const available = new Set();
-
-      const collectPage = (page) => {
-        page.forEach((model) => {
-          const normalized = normalizeModelName(model?.name);
-          if (normalized) available.add(normalized);
-        });
-      };
-
-      collectPage(pager.page || []);
-      let safetyPages = 0;
-      while (pager.hasNextPage() && safetyPages < 8) {
-        const page = await pager.nextPage();
-        collectPage(page || []);
-        safetyPages += 1;
-      }
-
-      const supported = [];
-      const unknown = [];
-      candidates.forEach((strategy) => {
-        if (available.has(strategy.model)) {
-          supported.push(strategy);
-        } else {
-          unknown.push(strategy);
-        }
-      });
-
-      return [...supported, ...unknown];
-    } catch {
-      return candidates;
-    }
-  })();
+  // Keep queue setup fast: the generation loop already retries across candidates
+  // and handles unsupported/unavailable model errors robustly.
+  strategyQueuePromise = Promise.resolve(buildStrategyCandidates());
 
   return strategyQueuePromise;
 }

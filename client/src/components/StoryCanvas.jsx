@@ -77,6 +77,11 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
     const ctx = canvas.getContext('2d');
     let animationFrameId;
 
+    let cachedBgGrad = null;
+    let cachedVignetteGrad = null;
+    let lastW = 0;
+    let lastH = 0;
+
     const lerp = (a, b, t) => a + (b - a) * t;
 
     const render = () => {
@@ -84,11 +89,23 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // 1. Background gradient
-      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 1.2);
-      bgGrad.addColorStop(0, '#0a0a14');
-      bgGrad.addColorStop(1, '#030305');
-      ctx.fillStyle = bgGrad;
+      // Recreate gradients only if dimensions changed
+      if (w !== lastW || h !== lastH || !cachedBgGrad || !cachedVignetteGrad) {
+        // 1. Background gradient
+        cachedBgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 1.2);
+        cachedBgGrad.addColorStop(0, '#0a0a14');
+        cachedBgGrad.addColorStop(1, '#030305');
+
+        // 3. Vignette overlay (pre-calculate)
+        cachedVignetteGrad = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.7);
+        cachedVignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        cachedVignetteGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
+
+        lastW = w;
+        lastH = h;
+      }
+
+      ctx.fillStyle = cachedBgGrad;
       ctx.fillRect(0, 0, w, h);
 
       // 2. Scene image with smooth opacity transition
@@ -131,10 +148,7 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
       }
 
       // 3. Vignette overlay
-      const vignetteGrad = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.7);
-      vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
-      ctx.fillStyle = vignetteGrad;
+      ctx.fillStyle = cachedVignetteGrad;
       ctx.fillRect(0, 0, w, h);
 
       // 4. Mood-based particles

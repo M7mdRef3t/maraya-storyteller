@@ -1,6 +1,7 @@
-﻿/**
+/**
  * Emotion and UI constants for Maraya.
  */
+import { STORY_MODES_CONFIG } from '../../../shared/story_modes.js';
 
 export const EMOTIONS = [
   {
@@ -59,26 +60,7 @@ export const EMOTIONS = [
   },
 ];
 
-export const STORY_MODES = [
-  {
-    id: 'judge_en',
-    ui_language: 'en',
-    label_en: 'Judge Mode (English)',
-    label_ar: 'وضع التحكيم (إنجليزي)',
-  },
-  {
-    id: 'ar_fusha',
-    ui_language: 'ar',
-    label_en: 'Arabic (Fusha)',
-    label_ar: 'العربية الفصحى',
-  },
-  {
-    id: 'ar_egyptian',
-    ui_language: 'ar',
-    label_en: 'Egyptian Colloquial',
-    label_ar: 'عامية مصرية',
-  },
-];
+export const STORY_MODES = Object.values(STORY_MODES_CONFIG);
 
 export function getModeUiLanguage(modeId) {
   const mode = STORY_MODES.find((item) => item.id === modeId);

@@ -1,6 +1,11 @@
 # Stage 1: Build the React frontend
 FROM node:20-slim AS client-build
 
+WORKDIR /build
+
+# Copy shared code first as it is a dependency
+COPY shared/ ./shared/
+
 WORKDIR /build/client
 COPY client/package*.json ./
 RUN npm install
@@ -11,6 +16,9 @@ RUN npm run build
 FROM node:20-slim
 
 WORKDIR /app
+
+# Copy shared code
+COPY shared/ ./shared/
 
 # Install server dependencies
 COPY server/package*.json ./

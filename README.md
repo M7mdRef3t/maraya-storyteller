@@ -40,7 +40,7 @@ Optional:
 
 - `IMAGEN_MODEL` (default `imagen-3.0-generate-002`)
 - `GEMINI_IMAGE_MODEL` (fallback default `gemini-2.5-flash-image`)
-- `PORT` (default `8080`, local dev often `3002`)
+- `PORT` (defaults to `3002` in local development and `8080` in production/Cloud Run)
 - `LOG_LEVEL` (`info` or `debug`)
 
 ### 3. Install dependencies

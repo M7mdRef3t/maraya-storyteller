@@ -329,7 +329,7 @@ app.get('/{*any}', (req, res) => {
   return res.status(503).send('Frontend build is missing. Backend is running.');
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 8080 : 3002);
 server.listen(PORT, () => {
   log(`Server listening on port ${PORT}`);
   log(`Log level: ${LOG_LEVEL}`);

@@ -31,7 +31,7 @@ function uniqueNonEmpty(values) {
   return [...new Set(values.map((value) => (value || '').trim()).filter(Boolean))];
 }
 
-function shouldRetryWithAnotherModel(error) {
+export function shouldRetryWithAnotherModel(error) {
   const message = String(error?.message || '').toLowerCase();
   return (
     message.includes('not found')

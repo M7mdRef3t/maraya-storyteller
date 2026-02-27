@@ -1,9 +1,9 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 
 /**
  * SpaceUpload - Image upload for room/space analysis.
  */
-export default function SpaceUpload({ onUpload, onBack, uiText }) {
+export default function SpaceUpload({ onUpload, onBack, uiText, disabled = false }) {
   const [preview, setPreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -48,6 +48,8 @@ export default function SpaceUpload({ onUpload, onBack, uiText }) {
 
   const handleDrop = (e) => {
     e.preventDefault();
+    if (disabled) return;
+
     setIsDragging(false);
     const file = e.dataTransfer?.files?.[0];
     processFile(file);
@@ -55,6 +57,7 @@ export default function SpaceUpload({ onUpload, onBack, uiText }) {
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    if (disabled) return;
     setIsDragging(true);
   };
 
@@ -63,30 +66,30 @@ export default function SpaceUpload({ onUpload, onBack, uiText }) {
   return (
     <div className="space-upload">
       <button className="space-upload__back" onClick={onBack}>
-        ← {uiText.back}
+        {'<-'} {uiText.back}
       </button>
 
       <h2 className="space-upload__title">{uiText.uploadTitle}</h2>
       <p className="space-upload__desc">{uiText.uploadDesc}</p>
 
       {!preview ? (
-        <div
+        <label
           className={`space-upload__dropzone ${isDragging ? 'space-upload__dropzone--active' : ''}`}
-          onClick={() => fileInputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
-          <span className="space-upload__dropzone-icon">🪞</span>
+          <span className="space-upload__dropzone-icon">[]</span>
           <span>{uiText.uploadDrop}</span>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
+            className="visually-hidden"
+            disabled={disabled}
             onChange={(e) => processFile(e.target.files?.[0])}
           />
-        </div>
+        </label>
       ) : (
         <div className="space-upload__preview">
           <img src={preview} alt="Preview" />

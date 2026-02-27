@@ -13,6 +13,7 @@ import {
   buildSpaceAnalysisPrompt,
   normalizeOutputMode,
 } from './prompts/storyteller.js';
+import { MessageSchema } from './validators.js';
 import { log, logDebug, logError } from './logger.js';
 
 dotenv.config();
@@ -285,7 +286,15 @@ wss.on('connection', (ws) => {
     if (isBinary) return;
 
     try {
-      const message = JSON.parse(data.toString());
+      const parsedData = JSON.parse(data.toString());
+      const result = MessageSchema.safeParse(parsedData);
+
+      if (!result.success) {
+        logError('Validation failed:', JSON.stringify(result.error.format()));
+        return;
+      }
+
+      const message = result.data;
       logDebug('Received:', message.type);
 
       switch (message.type) {

@@ -13,6 +13,7 @@ import {
   buildSpaceAnalysisPrompt,
   normalizeOutputMode,
 } from './prompts/storyteller.js';
+import { validateEmotion, validateChoiceText, validateBase64 } from './validators.js';
 import { log, logDebug, logError } from './logger.js';
 
 dotenv.config();
@@ -208,9 +209,13 @@ wss.on('connection', (ws) => {
     try {
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
-      let emotion = payload.emotion || 'hope';
+      let emotion = validateEmotion(payload.emotion || 'hope');
 
       if (payload.image) {
+        if (!validateBase64(payload.image)) {
+          logError('Invalid base64 image data received');
+          throw new Error('Invalid image data');
+        }
         log('Analyzing uploaded space image...');
         sendMessage('status', { text: uiStrings.readingSpace });
 
@@ -276,8 +281,8 @@ wss.on('connection', (ws) => {
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
 
-      const choiceText = payload.choice_text || '';
-      const emotionShift = payload.emotion_shift || currentEmotion;
+      const choiceText = validateChoiceText(payload.choice_text || '');
+      const emotionShift = validateEmotion(payload.emotion_shift || currentEmotion);
 
       if (emotionShift && emotionShift !== currentEmotion) {
         currentEmotion = emotionShift;

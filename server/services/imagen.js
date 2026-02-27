@@ -6,15 +6,16 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { logError } from '../logger.js';
+import { logError, logDebug } from '../logger.js';
+import { uniqueNonEmpty } from './utils.js';
 
 let ai = null;
 let activeStrategy = null;
 let strategyQueuePromise = null;
 let globalBackoffUntil = 0;
 
-export function initImagen(apiKey) {
-  ai = new GoogleGenAI({ apiKey });
+export function initImagen(apiKey, client = null) {
+  ai = client || new GoogleGenAI({ apiKey });
 }
 
 const IMAGEN_DEFAULT_MODELS = [
@@ -26,10 +27,6 @@ const GEMINI_IMAGE_DEFAULT_MODELS = [
   'gemini-2.5-flash-image',
   'gemini-3-pro-image-preview',
 ];
-
-function uniqueNonEmpty(values) {
-  return [...new Set(values.map((value) => (value || '').trim()).filter(Boolean))];
-}
 
 function shouldRetryWithAnotherModel(error) {
   const message = String(error?.message || '').toLowerCase();
@@ -63,8 +60,18 @@ function extractImageFromGenerateContentResponse(response) {
   return null;
 }
 
+async function executeModelCall(model, method, payload) {
+  logDebug(`[maraya-imagen] Calling ${method} with model: ${model}`);
+  try {
+    return await ai.models[method](payload);
+  } catch (error) {
+    logDebug(`[maraya-imagen] Error calling ${method} with ${model}: ${error.message}`);
+    throw error;
+  }
+}
+
 async function generateWithImagenModel(model, prompt) {
-  const response = await ai.models.generateImages({
+  const response = await executeModelCall(model, 'generateImages', {
     model,
     prompt: `${prompt}, photorealistic, cinematic composition, ultra high quality`,
     config: {
@@ -85,7 +92,7 @@ async function generateWithImagenModel(model, prompt) {
 }
 
 async function generateWithGeminiImageModel(model, prompt) {
-  const response = await ai.models.generateContent({
+  const response = await executeModelCall(model, 'generateContent', {
     model,
     contents: [
       {

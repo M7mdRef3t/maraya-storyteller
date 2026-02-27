@@ -1,0 +1,701 @@
+/* =============================================================================
+   Maraya Storyteller - Global Styles
+   ============================================================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --font-display: 'Amiri', serif;
+  --font-ui: 'Tajawal', sans-serif;
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #030305;
+  color: #fff;
+  font-family: var(--font-ui);
+}
+
+/* =============================================================================
+   App Layout
+   ============================================================================= */
+
+.app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.app__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.app__overlay > * {
+  pointer-events: auto;
+}
+
+/* =============================================================================
+   Emotion Picker (Landing)
+   ============================================================================= */
+
+.emotion-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  padding: 2rem;
+  animation: fadeInUp 1s var(--ease-spring);
+}
+
+.emotion-picker__header {
+  text-align: center;
+}
+
+.emotion-picker__title {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.6) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.emotion-picker__subtitle {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.5rem;
+}
+
+.emotion-picker__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.emotion-picker__voice {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.2rem;
+}
+
+.emotion-picker__voice-label {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.emotion-picker__voice-toggle {
+  min-width: 82px;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-smooth);
+}
+
+.emotion-picker__voice-toggle--on {
+  border-color: rgba(94, 255, 179, 0.7);
+  background: rgba(40, 120, 90, 0.4);
+  color: #ddffe9;
+}
+
+.emotion-picker__voice-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.emotion-picker__mode-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.04em;
+}
+
+.emotion-picker__mode-select {
+  min-width: 280px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.emotion-picker__mode-select:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
+}
+
+.emotion-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 500px;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .emotion-picker__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.emotion-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  cursor: pointer;
+  transition: all 0.4s var(--ease-spring);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+}
+
+.emotion-card:hover,
+.emotion-card--active {
+  background: var(--card-gradient);
+  border-color: var(--card-color);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px color-mix(in srgb, var(--card-color) 30%, transparent);
+}
+
+.emotion-card__icon {
+  font-size: 1.8rem;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.emotion-card:hover .emotion-card__icon {
+  opacity: 1;
+}
+
+.emotion-card__label {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.emotion-picker__upload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 2rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.emotion-picker__upload:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.emotion-picker__upload-icon {
+  font-size: 1.2rem;
+}
+
+/* =============================================================================
+   Space Upload
+   ============================================================================= */
+
+.space-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  animation: fadeInUp 0.6s var(--ease-spring);
+}
+
+.space-upload__back {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.space-upload__back:hover {
+  color: #fff;
+}
+
+.space-upload__title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+}
+
+.space-upload__desc {
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.space-upload__dropzone {
+  width: 100%;
+  aspect-ratio: 16/10;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-smooth);
+  font-size: 0.95rem;
+}
+
+.space-upload__dropzone:hover,
+.space-upload__dropzone--active {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.space-upload__dropzone-icon {
+  font-size: 3rem;
+}
+
+.space-upload__preview {
+  width: 100%;
+  text-align: center;
+}
+
+.space-upload__preview img {
+  width: 100%;
+  border-radius: 1rem;
+  opacity: 0.8;
+}
+
+.space-upload__analyzing {
+  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-display);
+  animation: pulse 2s infinite;
+}
+
+/* =============================================================================
+   Loading Mirror
+   ============================================================================= */
+
+.loading-mirror {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  animation: fadeInUp 0.6s var(--ease-spring);
+}
+
+.loading-mirror__orb {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  animation: float 3s ease-in-out infinite;
+}
+
+.loading-mirror__orb-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.3), rgba(255,255,255,0.05) 50%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: orbPulse 2s ease-in-out infinite;
+}
+
+.loading-mirror__orb-reflection {
+  position: absolute;
+  bottom: -40px;
+  left: 10%;
+  width: 80%;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,255,255,0.08), transparent);
+  filter: blur(4px);
+}
+
+.loading-mirror__text {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.6);
+  animation: pulse 2s infinite;
+}
+
+/* =============================================================================
+   Scene Renderer
+   ============================================================================= */
+
+.scene-renderer {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+  padding-bottom: 4rem;
+  gap: 2rem;
+}
+
+.scene-progress {
+  align-self: center;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.96);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
+
+/* =============================================================================
+   Narration Text
+   ============================================================================= */
+
+.narration-text {
+  max-width: 700px;
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+  animation: fadeInUp 0.8s var(--ease-spring);
+}
+
+.narration-text__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.narration-text__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.9rem;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.narration-text__block--narration {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.narration-text__block--visual {
+  border-color: rgba(255, 215, 0, 0.45);
+}
+
+.narration-text__block--reflection {
+  border-color: rgba(120, 200, 255, 0.45);
+}
+
+.narration-text__label {
+  align-self: flex-start;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.96);
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+.narration-text__block--visual .narration-text__label {
+  border-color: rgba(255, 215, 0, 0.8);
+  color: #ffe88f;
+}
+
+.narration-text__block--reflection .narration-text__label {
+  border-color: rgba(140, 215, 255, 0.82);
+  color: #d8f1ff;
+}
+
+.narration-text__content {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.4vw, 1.55rem);
+  line-height: 1.9;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.narration-text__cursor {
+  opacity: 1;
+  animation: blink 0.8s step-end infinite;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* =============================================================================
+   Choice Buttons
+   ============================================================================= */
+
+.choice-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-width: 500px;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s var(--ease-spring);
+}
+
+.choice-buttons--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.choice-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.choice-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateX(-4px);
+}
+
+.choice-button__text {
+  flex: 1;
+}
+
+.choice-button__arrow {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+.choice-button:hover .choice-button__arrow {
+  opacity: 1;
+}
+
+/* =============================================================================
+   Scene Final
+   ============================================================================= */
+
+.scene-final {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s var(--ease-spring);
+}
+
+.scene-final--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scene-final__text {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* =============================================================================
+   Ending Screen
+   ============================================================================= */
+
+.ending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  text-align: center;
+  padding: 2rem;
+  animation: fadeInUp 1s var(--ease-spring);
+}
+
+.ending__message {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.8;
+  max-width: 500px;
+}
+
+.ending__restart {
+  padding: 0.8rem 2rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.ending__restart:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* =============================================================================
+   Connection Lost
+   ============================================================================= */
+
+.connection-lost {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1.5rem;
+  background: rgba(255, 80, 60, 0.2);
+  border: 1px solid rgba(255, 80, 60, 0.3);
+  border-radius: 2rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  animation: pulse 2s infinite;
+  z-index: 100;
+}
+
+/* =============================================================================
+   Audio HUD
+   ============================================================================= */
+
+.audio-hud {
+  position: fixed;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  pointer-events: auto;
+}
+
+.audio-hud__btn {
+  min-width: 170px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(0, 0, 0, 0.52);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-smooth);
+}
+
+.audio-hud__btn--on {
+  border-color: rgba(110, 255, 185, 0.75);
+  background: rgba(38, 120, 88, 0.45);
+  color: #deffea;
+}
+
+.audio-hud__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* =============================================================================
+   Animations
+   ============================================================================= */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes orbPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+  }
+}

@@ -1,0 +1,21 @@
+flowchart LR
+  U[User Browser] -->|Emotion or image upload| FE[React Frontend]
+  FE -->|WebSocket start_story / choose| BE[Node.js Backend]
+  BE -->|Schema-constrained scene generation| GM[Gemini Text Model]
+  BE -->|Space emotion analysis| GM
+  BE -->|Scene image generation| IM[Imagen and Gemini image fallback]
+  GM --> BE
+  IM --> BE
+  BE -->|scene and scene_image events| FE
+  FE -->|Interleaved render + branch choices| U
+
+  subgraph GCP[Google Cloud]
+    CR[Cloud Run]
+    CB[Cloud Build]
+    AR[Artifact Registry]
+    TF[Terraform]
+  end
+
+  BE -. deployed on .-> CR
+  CB --> AR --> CR
+  TF -. provisions .-> CR

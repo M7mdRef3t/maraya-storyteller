@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.local
+dist/
+.DS_Store
+*.log
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.claude/
+.playwright-cli/
+.runlogs/

@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { uniqueNonEmpty } from './utils.js';
 
 let ai = null;
 
@@ -93,10 +94,6 @@ const SCENE_SCHEMA = {
   },
   required: ['scenes'],
 };
-
-function uniqueNonEmpty(values) {
-  return [...new Set(values.map((value) => (value || '').trim()).filter(Boolean))];
-}
 
 function isModelUnavailableError(error) {
   const message = String(error?.message || '').toLowerCase();

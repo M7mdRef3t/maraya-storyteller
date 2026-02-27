@@ -14,6 +14,7 @@ import {
   normalizeOutputMode,
 } from './prompts/storyteller.js';
 import { log, logDebug, logError } from './logger.js';
+import { TaskQueue } from './services/utils.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use(express.json());
 app.get('/health', (req, res) => res.send('OK'));
 
 const MAX_SCENES = 7;
+const imageGenerationQueue = new TaskQueue(3);
 
 function buildUiStrings(outputMode) {
   if (outputMode === 'judge_en') {
@@ -143,7 +145,8 @@ wss.on('connection', (ws) => {
         },
       });
 
-      generateImage(scene.image_prompt)
+      imageGenerationQueue
+        .add(() => generateImage(scene.image_prompt))
         .then((image) => {
           if (image) {
             sendMessage('scene_image', {

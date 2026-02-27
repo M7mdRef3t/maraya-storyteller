@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { uniqueNonEmpty } from './utils.js';
+import { uniqueNonEmpty, TaskQueue } from './utils.js';
 
 test('uniqueNonEmpty utility', async (t) => {
   await t.test('returns unique values preserving first-seen order', () => {
@@ -34,5 +34,46 @@ test('uniqueNonEmpty utility', async (t) => {
     assert.deepStrictEqual(uniqueNonEmpty(['', '  ']), []);
     assert.deepStrictEqual(uniqueNonEmpty(null), []);
     assert.deepStrictEqual(uniqueNonEmpty(undefined), []);
+  });
+});
+
+test('TaskQueue utility', async (t) => {
+  await t.test('executes tasks respecting concurrency limit', async () => {
+    const queue = new TaskQueue(2);
+    let active = 0;
+    let maxActive = 0;
+    const task = async () => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((r) => setTimeout(r, 10));
+      active--;
+    };
+
+    await Promise.all([
+      queue.add(task),
+      queue.add(task),
+      queue.add(task),
+      queue.add(task),
+      queue.add(task)
+    ]);
+
+    assert.equal(maxActive, 2);
+  });
+
+  await t.test('returns task results correctly', async () => {
+    const queue = new TaskQueue(1);
+    const result = await queue.add(async () => 'success');
+    assert.equal(result, 'success');
+  });
+
+  await t.test('handles task errors gracefully', async () => {
+    const queue = new TaskQueue(1);
+    await assert.rejects(
+      queue.add(async () => { throw new Error('fail'); }),
+      /fail/
+    );
+    // Ensure subsequent tasks still run
+    const result = await queue.add(async () => 'recovered');
+    assert.equal(result, 'recovered');
   });
 });

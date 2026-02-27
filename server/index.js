@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import dotenv from 'dotenv';
-import fs from 'fs';
+import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -352,7 +352,7 @@ const clientDistCandidates = [
   path.join(__dirname, 'client/dist'),
   path.join(__dirname, '../client/dist'),
 ];
-const clientDistPath = clientDistCandidates.find((candidate) => fs.existsSync(candidate));
+const clientDistPath = clientDistCandidates.find((candidate) => existsSync(candidate));
 
 if (clientDistPath) {
   app.use(express.static(clientDistPath));

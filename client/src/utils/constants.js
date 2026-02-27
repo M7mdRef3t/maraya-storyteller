@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Emotion and UI constants for Maraya.
  */
 
@@ -83,6 +83,11 @@ export const STORY_MODES = [
 export function getModeUiLanguage(modeId) {
   const mode = STORY_MODES.find((item) => item.id === modeId);
   return mode?.ui_language || 'en';
+}
+
+export function normalizeMode(mode) {
+  const fallback = 'judge_en';
+  return STORY_MODES.some((item) => item.id === mode) ? mode : fallback;
 }
 
 export const UI_COPY = {

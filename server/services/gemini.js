@@ -11,8 +11,8 @@ import { log, logDebug } from '../logger.js';
 
 let ai = null;
 
-export function initGemini(apiKey) {
-  ai = new GoogleGenAI({ apiKey });
+export function initGemini(apiKey, client = null) {
+  ai = client || new GoogleGenAI({ apiKey });
 }
 
 const AUDIO_MOOD_ENUM = [
@@ -110,28 +110,72 @@ function getTextModelCandidates() {
   return uniqueNonEmpty([process.env.GEMINI_TEXT_MODEL || '', ...GEMINI_TEXT_FALLBACK_MODELS]);
 }
 
-async function generateContentWithModelFallback({ contents, config, purpose }) {
+export async function generateContentWithModelFallback({ contents, config, purpose }) {
   const models = getTextModelCandidates();
-  let lastError = null;
+  
+  if (models.length === 0) {
+    throw new Error('No Gemini text models configured');
+  }
 
-  for (const model of models) {
+  // Promise.any standard behavior:
+  // - Resolves as soon as ONE promise fulfills.
+  // - Rejects with AggregateError ONLY if ALL promises reject.
+  
+  // This is actually almost exactly what we want for a "Race" where we want the first success,
+  // and we tolerate failures as long as ONE succeeds.
+  // The only nuance is logging. Standard Promise.any doesn't log individual failures until the end (in the AggregateError).
+  // We want to log unavailable/fatal errors as they happen for debugging.
+  
+  // Also, we want to capture "Fatal" errors but NOT let them stop the race unless ALL fail?
+  // Actually, if a fallback model has a bad API key (Fatal), but the primary model is fine (but slow),
+  // we want the primary model to eventually win. We do NOT want the Fatal error to reject the whole group immediately.
+  // So my previous implementation (rejecting immediately on Fatal) was indeed BRITTLE.
+  
+  // The robust solution is simply to use `Promise.any`, but wrap the promises to add logging side-effects.
+  // This ensures that:
+  // 1. First success wins (Speed).
+  // 2. Failures (Fatal or Unavailable) are ignored if another model succeeds.
+  // 3. If ALL fail, we get an AggregateError (which we can inspect).
+  
+  const wrappedPromises = models.map(async (model) => {
     try {
-      logDebug(`[gemini] ${purpose} with model:`, model);
-      return await ai.models.generateContent({
+      logDebug(`[gemini] ${purpose} attempting with model:`, model);
+      const result = await ai.models.generateContent({
         model,
         contents,
         config,
       });
+      return result;
     } catch (error) {
-      lastError = error;
-      if (!isModelUnavailableError(error)) {
-        throw error;
-      }
-      log(`[gemini] Model unavailable for ${purpose}: ${model} -> ${error.message}`);
+      // Log the error immediately for visibility
+      const isUnavailable = isModelUnavailableError(error);
+      const errorType = isUnavailable ? 'unavailable' : 'fatal';
+      log(`[gemini] Model ${errorType} error for ${purpose}: ${model} -> ${error.message}`);
+      
+      // Re-throw so Promise.any counts it as a rejection
+      throw error;
     }
-  }
+  });
 
-  throw lastError || new Error('No available Gemini text model');
+  try {
+    return await Promise.any(wrappedPromises);
+  } catch (aggregateError) {
+    // All models failed.
+    // We should probably throw the "most relevant" error.
+    // If there was a fatal error, throw that. Otherwise throw the last unavailable error.
+    
+    // AggregateError has an .errors array.
+    const errors = aggregateError.errors || [];
+    const fatalError = errors.find(e => !isModelUnavailableError(e));
+    
+    if (fatalError) {
+      throw fatalError;
+    }
+    
+    // If all were unavailable, throw the last one (or a generic one)
+    const lastError = errors[errors.length - 1];
+    throw lastError || new Error('No available Gemini text model');
+  }
 }
 
 export function normalizeInterleavedBlocks(scene, outputMode) {

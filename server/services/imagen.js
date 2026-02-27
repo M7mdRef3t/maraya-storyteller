@@ -13,6 +13,11 @@ let activeStrategy = null;
 let strategyQueuePromise = null;
 let globalBackoffUntil = 0;
 
+export function normalizeModelName(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().replace(/^models\//, '');
+}
+
 export function initImagen(apiKey) {
   ai = new GoogleGenAI({ apiKey });
 }

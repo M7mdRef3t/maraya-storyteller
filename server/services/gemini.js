@@ -96,7 +96,7 @@ const SCENE_SCHEMA = {
   required: ['scenes'],
 };
 
-function isModelUnavailableError(error) {
+export function isModelUnavailableError(error) {
   const message = String(error?.message || '').toLowerCase();
   return (
     message.includes('no longer available')

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Gemini Structured Output Service
  *
  * Uses Gemini text models with forced JSON schema output
@@ -39,7 +39,7 @@ const SCENE_SCHEMA = {
           },
           narration_ar: {
             type: 'string',
-            description: 'Poetic Arabic narration, 2-3 sentences using architectural metaphors',
+            description: 'Poetic narration in the target language, 2-3 sentences using architectural metaphors',
           },
           image_prompt: {
             type: 'string',
@@ -63,7 +63,7 @@ const SCENE_SCHEMA = {
                 },
                 text_ar: {
                   type: 'string',
-                  description: 'Arabic text for this block',
+                  description: 'Text content in the target language for this block',
                 },
               },
               required: ['kind', 'text_ar'],
@@ -76,7 +76,7 @@ const SCENE_SCHEMA = {
               properties: {
                 text_ar: {
                   type: 'string',
-                  description: 'Choice text in Arabic',
+                  description: 'Choice text in the target language',
                 },
                 emotion_shift: {
                   type: 'string',
@@ -136,8 +136,10 @@ async function generateContentWithModelFallback({ contents, config, purpose }) {
   throw lastError || new Error('No available Gemini text model');
 }
 
-function normalizeInterleavedBlocks(scene) {
+function normalizeInterleavedBlocks(scene, outputMode) {
   if (!scene || typeof scene !== 'object') return [];
+
+  const isEnglish = outputMode === 'judge_en';
 
   const blocks = Array.isArray(scene.interleaved_blocks) ? scene.interleaved_blocks : [];
   const normalized = blocks
@@ -156,7 +158,15 @@ function normalizeInterleavedBlocks(scene) {
   const narration = typeof scene.narration_ar === 'string' ? scene.narration_ar.trim() : '';
   if (!narration) return [];
 
-  // Backward-compatible fallback when the model returns the legacy single text field.
+  // Backward-compatible fallback
+  if (isEnglish) {
+    return [
+      { kind: 'narration', text_ar: narration },
+      { kind: 'visual', text_ar: 'The image forms around you as the light shifts slowly.' },
+      { kind: 'reflection', text_ar: 'Pause for a moment, then choose the path that calls to you.' },
+    ];
+  }
+
   return [
     { kind: 'narration', text_ar: narration },
     { kind: 'visual', text_ar: 'تتشكل الصورة حولك بينما يتبدل الضوء ببطء.' },
@@ -164,18 +174,24 @@ function normalizeInterleavedBlocks(scene) {
   ];
 }
 
-function normalizeScene(scene, index) {
+function normalizeScene(scene, index, outputMode) {
   if (!scene || typeof scene !== 'object') return null;
+
+  const isEnglish = outputMode === 'judge_en';
 
   const sceneId =
     typeof scene.scene_id === 'string' && scene.scene_id.trim()
       ? scene.scene_id.trim()
       : `scene_${index + 1}`;
 
+  const defaultNarration = isEnglish
+    ? 'The scene takes shape in silence, as if the walls are catching their breath.'
+    : 'يتشكل المشهد بصمت، كأن الجدران تستعيد أنفاسها.';
+
   const narration =
     typeof scene.narration_ar === 'string' && scene.narration_ar.trim()
       ? scene.narration_ar.trim()
-      : 'يتشكل المشهد بصمت، كأن الجدران تستعيد أنفاسها.';
+      : defaultNarration;
 
   const imagePrompt =
     typeof scene.image_prompt === 'string' && scene.image_prompt.trim()
@@ -203,7 +219,7 @@ function normalizeScene(scene, index) {
     narration_ar: narration,
     image_prompt: imagePrompt,
     audio_mood: audioMood,
-    interleaved_blocks: normalizeInterleavedBlocks(scene),
+    interleaved_blocks: normalizeInterleavedBlocks(scene, outputMode),
     choices,
   };
 }
@@ -211,7 +227,7 @@ function normalizeScene(scene, index) {
 /**
  * Generate story scenes using Gemini structured output
  */
-export async function generateScenes(systemPrompt, conversationHistory) {
+export async function generateScenes(systemPrompt, conversationHistory, outputMode = 'ar_fusha') {
   if (!ai) throw new Error('Gemini not initialized');
 
   console.log('[gemini] Conversation history length:', conversationHistory.length);
@@ -241,7 +257,7 @@ export async function generateScenes(systemPrompt, conversationHistory) {
 
   const rawScenes = Array.isArray(parsed?.scenes) ? parsed.scenes : [];
   const scenes = rawScenes
-    .map((scene, index) => normalizeScene(scene, index))
+    .map((scene, index) => normalizeScene(scene, index, outputMode))
     .filter(Boolean);
 
   console.log('[gemini] Parsed scenes count:', scenes.length);

@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import dotenv from 'dotenv';
@@ -207,7 +207,7 @@ wss.on('connection', (ws) => {
       sendMessage('status', { text: uiStrings.shapingStory });
 
       const systemPrompt = buildStorytellerPrompt(emotion, false, currentOutputMode);
-      const scenes = await generateScenes(systemPrompt, conversationHistory);
+      const scenes = await generateScenes(systemPrompt, conversationHistory, currentOutputMode);
 
       if (!scenes || scenes.length === 0) {
         throw new Error('No scenes generated');
@@ -263,7 +263,7 @@ wss.on('connection', (ws) => {
         isNearEnd,
       );
 
-      const scenes = await generateScenes(systemPrompt, conversationHistory);
+      const scenes = await generateScenes(systemPrompt, conversationHistory, currentOutputMode);
       if (!scenes || scenes.length === 0) {
         throw new Error('No scenes generated');
       }

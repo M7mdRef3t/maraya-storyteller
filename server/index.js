@@ -33,8 +33,47 @@ log('Gemini & Imagen services initialized');
 
 const app = express();
 const server = createServer(app);
+
+function verifyClient(info, cb) {
+  const origin = info.req.headers.origin;
+  const host = (info.req.headers.host || '').toLowerCase();
+
+  if (!origin) {
+    return cb(true);
+  }
+
+  try {
+    const originHost = new URL(origin).host.toLowerCase();
+    if (host && originHost === host) {
+      return cb(true);
+    }
+  } catch {
+    logDebug(`Blocked WebSocket connection with invalid origin format: ${origin}`);
+    return cb(false, 403, 'Forbidden');
+  }
+
+  const allowedOrigins = [
+    'http://localhost:5180',
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'http://127.0.0.1:5180',
+  ];
+
+  if (process.env.ALLOWED_ORIGINS) {
+    allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(',').map((value) => value.trim()).filter(Boolean));
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return cb(true);
+  }
+
+  logDebug(`Blocked WebSocket connection from untrusted origin: ${origin}`);
+  return cb(false, 403, 'Forbidden');
+}
+
 const wss = new WebSocketServer({
   server,
+  verifyClient,
   maxPayload: 5 * 1024 * 1024,
 });
 

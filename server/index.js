@@ -33,8 +33,55 @@ log('Gemini & Imagen services initialized');
 
 const app = express();
 const server = createServer(app);
+
+// Security: Verify Origin to prevent CSRF/WebSocket hijacking
+function verifyClient(info, cb) {
+  const origin = info.req.headers.origin;
+  const host = info.req.headers.host;
+
+  // 1. Allow no origin (e.g. server-to-server or local scripts)
+  if (!origin) {
+    return cb(true);
+  }
+
+  try {
+    const originUrl = new URL(origin);
+    const originHost = originUrl.host;
+
+    // 2. Allow if origin matches host (Same-Origin)
+    // Note: 'host' header usually includes port if non-standard
+    if (originHost.toLowerCase() === host.toLowerCase()) {
+      return cb(true);
+    }
+  } catch (err) {
+    // Malformed origin header? Block it.
+    logDebug(`Blocked WebSocket connection with invalid origin format: ${origin}`);
+    return cb(false, 403, 'Forbidden');
+  }
+
+  // 3. Trusted origins (Development + Production Config)
+  const allowedOrigins = [
+    'http://localhost:5180', // Vite default
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'http://127.0.0.1:5180',
+  ];
+
+  if (process.env.ALLOWED_ORIGINS) {
+    allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()));
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return cb(true);
+  }
+
+  logDebug(`Blocked WebSocket connection from untrusted origin: ${origin}`);
+  return cb(false, 403, 'Forbidden');
+}
+
 const wss = new WebSocketServer({
   server,
+  verifyClient,
   maxPayload: 5 * 1024 * 1024,
 });
 

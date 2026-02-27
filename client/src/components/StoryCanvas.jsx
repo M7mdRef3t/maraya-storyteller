@@ -14,6 +14,10 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
   const targetOpacityRef = useRef(0);    // Target opacity
   const moodRef = useRef(mood || 'ambient_calm');
 
+  // Cache gradients to avoid re-creation on every frame
+  const bgGradientRef = useRef(null);
+  const vignetteGradientRef = useRef(null);
+
   // Mood-based particle color mapping
   const MOOD_COLORS = {
     ambient_calm: { r: 100, g: 200, b: 255, speed: 0.15 },
@@ -58,15 +62,32 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
     },
   }));
 
-  // Handle resize
+  // Handle resize and recreate gradients
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const ctx = canvas.getContext('2d');
+
+      // Create and cache Background Gradient
+      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 1.2);
+      bgGrad.addColorStop(0, '#0a0a14');
+      bgGrad.addColorStop(1, '#030305');
+      bgGradientRef.current = bgGrad;
+
+      // Create and cache Vignette Gradient
+      const vignetteGrad = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.7);
+      vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
+      vignetteGradientRef.current = vignetteGrad;
     };
-    handleResize();
+
+    handleResize(); // Initial setup
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -84,12 +105,11 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // 1. Background gradient
-      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 1.2);
-      bgGrad.addColorStop(0, '#0a0a14');
-      bgGrad.addColorStop(1, '#030305');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
+      // 1. Background gradient (Use cached)
+      if (bgGradientRef.current) {
+        ctx.fillStyle = bgGradientRef.current;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       // 2. Scene image with smooth opacity transition
       if (targetImageRef.current && targetOpacityRef.current > 0) {
@@ -130,15 +150,16 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         ctx.globalAlpha = 1;
       }
 
-      // 3. Vignette overlay
-      const vignetteGrad = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.7);
-      vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
-      ctx.fillStyle = vignetteGrad;
-      ctx.fillRect(0, 0, w, h);
+      // 3. Vignette overlay (Use cached)
+      if (vignetteGradientRef.current) {
+        ctx.fillStyle = vignetteGradientRef.current;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       // 4. Mood-based particles
       const moodConfig = MOOD_COLORS[moodRef.current] || MOOD_COLORS.ambient_calm;
+      // Set fillStyle ONCE per frame for all particles
+      ctx.fillStyle = `rgba(${moodConfig.r}, ${moodConfig.g}, ${moodConfig.b}, 0.6)`;
 
       particlesRef.current.forEach((p) => {
         // Smoothly adjust speed based on mood
@@ -156,7 +177,7 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         if (p.y > h) p.y = 0;
 
         ctx.globalAlpha = p.opacity;
-        ctx.fillStyle = `rgba(${moodConfig.r}, ${moodConfig.g}, ${moodConfig.b}, 0.6)`;
+        // ctx.fillStyle is already set above loop
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();

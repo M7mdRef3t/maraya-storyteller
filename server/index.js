@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { rateLimit } from 'express-rate-limit';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 import { initGemini, generateScenes, analyzeSpace } from './services/gemini.js';
 import { initImagen, generateImage } from './services/imagen.js';
@@ -33,9 +35,34 @@ log('Gemini & Imagen services initialized');
 
 const app = express();
 const server = createServer(app);
+
+// Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc)
+// see https://expressjs.com/en/guide/behind-proxies.html
+app.set('trust proxy', 1);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply the rate limiting middleware to all requests
+app.use(limiter);
+
 const wss = new WebSocketServer({
   server,
   maxPayload: 5 * 1024 * 1024,
+});
+
+const rateLimiterConnections = new RateLimiterMemory({
+  points: 10, // 10 connections
+  duration: 60, // per 60 seconds
+});
+
+const rateLimiterMessages = new RateLimiterMemory({
+  points: 20, // 20 messages
+  duration: 60, // per 60 seconds
 });
 
 app.use(express.json());
@@ -97,7 +124,18 @@ function buildFallbackChoices(outputMode) {
   ];
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', async (ws, req) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  try {
+    await rateLimiterConnections.consume(ip);
+    ws.remoteIp = ip; // Store IP for message rate limiting
+  } catch (rejRes) {
+    logDebug('Rate limit exceeded for connection from:', ip);
+    ws.close(1008, 'Rate limit exceeded');
+    return;
+  }
+
   log('Client connected');
 
   let conversationHistory = [];
@@ -281,8 +319,16 @@ wss.on('connection', (ws) => {
     }
   };
 
-  ws.on('message', (data, isBinary) => {
+  ws.on('message', async (data, isBinary) => {
     if (isBinary) return;
+
+    try {
+      await rateLimiterMessages.consume(ws.remoteIp);
+    } catch (rejRes) {
+      logDebug('Rate limit exceeded for message from:', ws.remoteIp);
+      sendMessage('error', { message: 'Rate limit exceeded' });
+      return;
+    }
 
     try {
       const message = JSON.parse(data.toString());

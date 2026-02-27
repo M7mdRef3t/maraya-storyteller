@@ -12,6 +12,7 @@ import {
   buildStorytellerPrompt,
   buildSpaceAnalysisPrompt,
   normalizeOutputMode,
+  OUTPUT_MODE_CONFIG,
 } from './prompts/storyteller.js';
 import { log, logDebug, logError } from './logger.js';
 
@@ -83,57 +84,13 @@ app.get('/health', (req, res) => res.send('OK'));
 const MAX_SCENES = 7;
 
 function buildUiStrings(outputMode) {
-  if (outputMode === 'judge_en') {
-    return {
-      readingSpace: 'Maraya is reading your space...',
-      shapingStory: 'Maraya is taking shape...',
-      nextScene: 'The next scene is taking shape...',
-      storyComplete: 'You have reached the end of this journey. But mirrors never truly end...',
-      startErrorPrefix: 'Failed to start story:',
-      nextError: 'Failed to generate the next scene.',
-    };
-  }
-
-  if (outputMode === 'ar_egyptian') {
-    return {
-      readingSpace: 'مرايا بتقرا المكان بتاعك...',
-      shapingStory: 'مرايا بتتشكّل...',
-      nextScene: 'المشهد اللي بعده بيتشكّل...',
-      storyComplete: 'وصلت لنهاية الرحلة... بس المرايات عمرها ما بتخلص.',
-      startErrorPrefix: 'القصة ما بدأتش:',
-      nextError: 'ما قدرناش نكمّل المشهد اللي بعده.',
-    };
-  }
-
-  return {
-    readingSpace: 'المرايا تقرأ مكانك...',
-    shapingStory: 'المرايا تتشكل...',
-    nextScene: 'المشهد التالي يتشكل...',
-    storyComplete: 'وصلتَ إلى نهاية هذه الرحلة. لكنّ المرايا لا تنتهي...',
-    startErrorPrefix: 'فشل في بدء القصة:',
-    nextError: 'فشل في إنشاء المشهد التالي.',
-  };
+  const modeKey = normalizeOutputMode(outputMode);
+  return OUTPUT_MODE_CONFIG[modeKey].uiStrings;
 }
 
 function buildFallbackChoices(outputMode) {
-  if (outputMode === 'judge_en') {
-    return [
-      { text_ar: 'Walk toward the brighter corridor and face what is waiting.', emotion_shift: 'hope' },
-      { text_ar: 'Stay still and listen to the echo before moving.', emotion_shift: 'nostalgia' },
-    ];
-  }
-
-  if (outputMode === 'ar_egyptian') {
-    return [
-      { text_ar: 'تتحرك نحية الممر المنوّر وتواجه اللي مستنيك.', emotion_shift: 'hope' },
-      { text_ar: 'تفضل مكانك شوية وتسمع صدى المكان قبل ما تتحرك.', emotion_shift: 'nostalgia' },
-    ];
-  }
-
-  return [
-    { text_ar: 'تمضي نحو الممر الأكثر نورًا وتواجه ما ينتظرك.', emotion_shift: 'hope' },
-    { text_ar: 'تتريّث لحظة وتنصت لصدى المكان قبل المتابعة.', emotion_shift: 'nostalgia' },
-  ];
+  const modeKey = normalizeOutputMode(outputMode);
+  return OUTPUT_MODE_CONFIG[modeKey].fallbackChoices;
 }
 
 wss.on('connection', (ws) => {

@@ -699,3 +699,26 @@ html, body, #root {
     box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
   }
 }
+
+/* =============================================================================
+   Accessibility Utilities
+   ============================================================================= */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Add focus ring for accessibility when input inside dropzone is focused */
+.space-upload__dropzone:focus-within {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 4px;
+  border-color: rgba(255, 255, 255, 0.5);
+}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 
 /**
  * SpaceUpload - Image upload for room/space analysis.
@@ -70,9 +70,8 @@ export default function SpaceUpload({ onUpload, onBack, uiText }) {
       <p className="space-upload__desc">{uiText.uploadDesc}</p>
 
       {!preview ? (
-        <div
+        <label
           className={`space-upload__dropzone ${isDragging ? 'space-upload__dropzone--active' : ''}`}
-          onClick={() => fileInputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -83,10 +82,10 @@ export default function SpaceUpload({ onUpload, onBack, uiText }) {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
+            className="visually-hidden"
             onChange={(e) => processFile(e.target.files?.[0])}
           />
-        </div>
+        </label>
       ) : (
         <div className="space-upload__preview">
           <img src={preview} alt="Preview" />

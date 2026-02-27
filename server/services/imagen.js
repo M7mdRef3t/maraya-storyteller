@@ -41,7 +41,7 @@ function shouldRetryWithAnotherModel(error) {
   );
 }
 
-function extractImageFromGenerateContentResponse(response) {
+export function extractImageFromGenerateContentResponse(response) {
   const parts = response?.candidates?.[0]?.content?.parts || [];
   for (const part of parts) {
     const data = part?.inlineData?.data;

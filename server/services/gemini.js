@@ -172,7 +172,7 @@ function normalizeInterleavedBlocks(scene, outputMode) {
   ];
 }
 
-function normalizeScene(scene, index, outputMode) {
+export function normalizeScene(scene, index, outputMode) {
   if (!scene || typeof scene !== 'object') return null;
 
   const isEnglish = outputMode === 'judge_en';

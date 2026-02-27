@@ -1,13 +1,15 @@
 import { useRef, useCallback, useEffect } from 'react';
 
-function getVoiceCandidates(voices, lang) {
+export function getVoiceCandidates(voices, lang) {
   const target = (lang || '').toLowerCase();
   const base = target.split('-')[0];
 
   const exact = voices.find((voice) => voice.lang?.toLowerCase() === target);
   if (exact) return exact;
 
-  const prefix = voices.find((voice) => voice.lang?.toLowerCase().startsWith(base));
+  if (!base) return null;
+
+  const prefix = voices.find((voice) => (voice.lang || '').toLowerCase().startsWith(base));
   if (prefix) return prefix;
 
   return null;

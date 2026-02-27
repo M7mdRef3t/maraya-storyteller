@@ -1,4 +1,4 @@
-﻿import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 /**
  * Audio mood crossfade system.
@@ -6,6 +6,48 @@
  */
 
 const FADE_DURATION = 2; // seconds
+
+/**
+ * Queue for limiting concurrent audio decoding.
+ * decodeAudioData can be CPU intensive and block the main thread.
+ */
+class DecodeQueue {
+  constructor(concurrency = 1) {
+    this.concurrency = concurrency;
+    this.running = 0;
+    this.queue = [];
+  }
+
+  add(task) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ task, resolve, reject });
+      this.next();
+    });
+  }
+
+  async next() {
+    if (this.running >= this.concurrency || this.queue.length === 0) {
+      return;
+    }
+
+    this.running++;
+    const { task, resolve, reject } = this.queue.shift();
+
+    try {
+      const result = await task();
+      resolve(result);
+    } catch (err) {
+      reject(err);
+    } finally {
+      this.running--;
+      this.next();
+    }
+  }
+}
+
+// Global queue instance to coordinate across all hook usages if multiple components used it
+// (though typically this hook is used once at top level)
+const decodeQueue = new DecodeQueue(1);
 
 export default function useAudioMood() {
   const contextRef = useRef(null);
@@ -38,7 +80,7 @@ export default function useAudioMood() {
       };
 
       addCandidate(url);
-      addCandidate(url.includes('?') ? `${url}&cb=${Date.now()}` : `${url}?cb=${Date.now()}`);
+      addCandidate(url.includes('?') ? '${url}&cb=${Date.now()}' : '${url}?cb=${Date.now()}');
 
       if (url.endsWith('.wav')) {
         addCandidate(url.replace(/\.wav(\?.*)?$/, '.mp3'));
@@ -56,7 +98,12 @@ export default function useAudioMood() {
             throw new Error(`HTTP ${response.status}`);
           }
           const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer = await contextRef.current.decodeAudioData(arrayBuffer);
+
+          // Use the queue for decoding
+          const audioBuffer = await decodeQueue.add(() =>
+            contextRef.current.decodeAudioData(arrayBuffer)
+          );
+
           buffersRef.current.set(moodId, audioBuffer);
           return audioBuffer;
         } catch (err) {

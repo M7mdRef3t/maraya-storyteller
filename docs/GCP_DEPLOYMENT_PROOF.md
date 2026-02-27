@@ -36,6 +36,7 @@ If recording is not possible, include direct repository links to:
 - `server/cloudbuild.yaml`
 - `server/cloudbuild-buildonly.yaml`
 - `main.tf`
+- `terraform.tfvars.example`
 
 Suggested sentence for Devpost:
 

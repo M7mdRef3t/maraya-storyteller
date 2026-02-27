@@ -3,9 +3,12 @@ set -euo pipefail
 
 # Maraya Storyteller - Cloud Run Deployment Script
 # Usage:
-#   GEMINI_API_KEY=xxx ./cloud-deploy.sh
+#   GEMINI_API_KEY=xxx ./server/cloud-deploy.sh
 # Optional overrides:
-#   PROJECT_ID=my-gcp-project SERVICE_NAME=maraya-storyteller REGION=europe-west1 ./cloud-deploy.sh
+#   PROJECT_ID=my-gcp-project SERVICE_NAME=maraya-storyteller REGION=europe-west1 ./server/cloud-deploy.sh
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null || true)}"
 SERVICE_NAME="${SERVICE_NAME:-maraya-storyteller}"
@@ -20,7 +23,7 @@ fi
 
 if [[ -z "${GEMINI_API_KEY}" ]]; then
   echo "ERROR: GEMINI_API_KEY is required. Run with:"
-  echo "   GEMINI_API_KEY=your_key_here ./cloud-deploy.sh"
+  echo "   GEMINI_API_KEY=your_key_here ./server/cloud-deploy.sh"
   exit 1
 fi
 
@@ -30,11 +33,16 @@ echo "Deploying ${SERVICE_NAME} to Cloud Run"
 echo "   PROJECT_ID=${PROJECT_ID}"
 echo "   REGION=${REGION}"
 
-echo "Building React frontend..."
-cd ../client && npm install && npm run build && cd ../server
+echo "Enabling required APIs..."
+gcloud services enable \
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com
 
 echo "Building container image with Cloud Build..."
-gcloud builds submit --tag "${IMAGE}" .
+gcloud builds submit "${REPO_ROOT}" \
+  --config "${REPO_ROOT}/server/cloudbuild-buildonly.yaml" \
+  --substitutions "_SERVICE_NAME=${SERVICE_NAME}"
 
 echo "Deploying service..."
 gcloud run deploy "${SERVICE_NAME}" \

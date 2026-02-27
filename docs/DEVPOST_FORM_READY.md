@@ -53,6 +53,6 @@ Use `docs/GCP_DEPLOYMENT_PROOF.md`.
 
 ## Bonus points checklist
 
-- Deployment automation: included (`main.tf` and `server/cloud-deploy.*`)
+- Deployment automation: included (`main.tf`, `terraform.tfvars.example`, and `server/cloud-deploy.*`)
 - Public technical content with challenge disclosure: pending
 - GDG profile link: optional

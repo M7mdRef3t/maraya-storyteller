@@ -94,11 +94,29 @@ Linux/macOS:
 PROJECT_ID=<YOUR_PROJECT_ID> REGION=europe-west1 SERVICE_NAME=maraya-storyteller GEMINI_API_KEY=<YOUR_GEMINI_API_KEY> ./server/cloud-deploy.sh
 ```
 
+Notes:
+
+- Run both commands from the repository root.
+- The scripts build from the repo root so the multi-stage Docker build can package both `client/` and `server/`.
+- `server/cloudbuild.yaml` expects a Secret Manager secret named `GEMINI_API_KEY`. Use the scripts above if you want a direct one-command deploy without pre-creating that secret.
+
 ### Terraform (IaC)
 
 ```bash
+cp terraform.tfvars.example terraform.tfvars
 terraform init
-terraform apply -var="project_id=<YOUR_PROJECT_ID>" -var="region=europe-west1" -var="gemini_api_key=<YOUR_GEMINI_API_KEY>"
+terraform apply -var-file="terraform.tfvars"
+```
+
+Edit `terraform.tfvars` before applying:
+
+```hcl
+project_id        = "<YOUR_PROJECT_ID>"
+region            = "europe-west1"
+service_name      = "maraya-storyteller"
+gemini_api_key    = "<YOUR_GEMINI_API_KEY>"
+gemini_text_model = "gemini-2.5-flash"
+log_level         = "info"
 ```
 
 Current deployed health endpoint:
@@ -119,6 +137,7 @@ Current deployed health endpoint:
 - `client/` - frontend UI and live scene renderer
 - `server/` - orchestration, prompts, model services, WebSocket server
 - `main.tf` - Terraform provisioning for Google Cloud
+- `terraform.tfvars.example` - editable Terraform input template
 - `docs/` - Devpost-ready submission assets
 
 ## Submission package

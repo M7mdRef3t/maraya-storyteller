@@ -1,9 +1,12 @@
+substitutions:
+  _SERVICE_NAME: maraya-storyteller
+
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/maraya-storyteller', '-f', 'server/Dockerfile', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}', '-f', 'server/Dockerfile', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/maraya-storyteller']
+    args: ['push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}']
 
 images:
-  - 'gcr.io/$PROJECT_ID/maraya-storyteller'
+  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}'

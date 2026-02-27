@@ -72,7 +72,12 @@ $image = "gcr.io/$ProjectId/$ServiceName"
 Write-Host "Submitting build..."
 Push-Location $repoRoot
 try {
-  Invoke-Gcloud -Bin $gcloud -GcloudArgs @("builds", "submit", "--config", "server/cloudbuild-buildonly.yaml", ".")
+  Invoke-Gcloud -Bin $gcloud -GcloudArgs @(
+    "builds", "submit",
+    "--config", "server/cloudbuild-buildonly.yaml",
+    "--substitutions", "_SERVICE_NAME=$ServiceName",
+    "."
+  )
 }
 finally {
   Pop-Location

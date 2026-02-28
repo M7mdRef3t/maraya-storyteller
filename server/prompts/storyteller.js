@@ -64,6 +64,18 @@ const OUTPUT_MODE_CONFIG = {
       'Choice 2 should lean toward reflection/acceptance.',
     ],
     interleavedHint: 'Interleaved block text should be in English.',
+    uiStrings: {
+      readingSpace: 'Maraya is reading your space...',
+      shapingStory: 'Maraya is taking shape...',
+      nextScene: 'The next scene is taking shape...',
+      storyComplete: 'You have reached the end of this journey. But mirrors never truly end...',
+      startErrorPrefix: 'Failed to start story:',
+      nextError: 'Failed to generate the next scene.',
+    },
+    fallbackChoices: [
+      { text_ar: 'Walk toward the brighter corridor and face what is waiting.', emotion_shift: 'hope' },
+      { text_ar: 'Stay still and listen to the echo before moving.', emotion_shift: 'nostalgia' },
+    ],
   },
   ar_fusha: {
     name: 'Arabic Fusha',
@@ -79,6 +91,18 @@ const OUTPUT_MODE_CONFIG = {
       'الاختيار الثاني للتأمل والتقبّل.',
     ],
     interleavedHint: 'نصوص interleaved تكون بالعربية الفصحى.',
+    uiStrings: {
+      readingSpace: 'المرايا تقرأ مكانك...',
+      shapingStory: 'المرايا تتشكل...',
+      nextScene: 'المشهد التالي يتشكل...',
+      storyComplete: 'وصلتَ إلى نهاية هذه الرحلة. لكنّ المرايا لا تنتهي...',
+      startErrorPrefix: 'فشل في بدء القصة:',
+      nextError: 'فشل في إنشاء المشهد التالي.',
+    },
+    fallbackChoices: [
+      { text_ar: 'تمضي نحو الممر الأكثر نورًا وتواجه ما ينتظرك.', emotion_shift: 'hope' },
+      { text_ar: 'تتريّث لحظة وتنصت لصدى المكان قبل المتابعة.', emotion_shift: 'nostalgia' },
+    ],
   },
   ar_egyptian: {
     name: 'Egyptian Colloquial Arabic',
@@ -94,6 +118,18 @@ const OUTPUT_MODE_CONFIG = {
       'الاختيار الثاني يميل للتأمل والهدوء.',
     ],
     interleavedHint: 'نصوص interleaved تكون بالعامية المصرية.',
+    uiStrings: {
+      readingSpace: 'مرايا بتقرا المكان بتاعك...',
+      shapingStory: 'مرايا بتتشكّل...',
+      nextScene: 'المشهد اللي بعده بيتشكّل...',
+      storyComplete: 'وصلت لنهاية الرحلة... بس المرايات عمرها ما بتخلص.',
+      startErrorPrefix: 'القصة ما بدأتش:',
+      nextError: 'ما قدرناش نكمّل المشهد اللي بعده.',
+    },
+    fallbackChoices: [
+      { text_ar: 'تتحرك نحية الممر المنوّر وتواجه اللي مستنيك.', emotion_shift: 'hope' },
+      { text_ar: 'تفضل مكانك شوية وتسمع صدى المكان قبل ما تتحرك.', emotion_shift: 'nostalgia' },
+    ],
   },
 };
 

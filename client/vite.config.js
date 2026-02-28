@@ -11,6 +11,10 @@ export default defineConfig({
         ws: true,
       },
     },
+    fs: {
+      // Allow serving files from one level up to the project root
+      allow: ['..'],
+    },
   },
   test: {
     environment: 'jsdom',

@@ -152,6 +152,9 @@ wss.on('connection', (ws) => {
   };
 
   const streamScenes = (scenes, baseSceneCount = 0, uiStrings, outputMode = currentOutputMode) => {
+    let isFinal = false;
+
+    // First loop: stream the text for all scenes immediately
     for (let i = 0; i < scenes.length; i += 1) {
       const scene = scenes[i];
       const storySceneNumber = baseSceneCount + i + 1;
@@ -168,7 +171,7 @@ wss.on('connection', (ws) => {
         );
       }
 
-      const isFinal = reachedStoryLimit;
+      if (reachedStoryLimit) isFinal = true;
 
       sendMessage('scene', {
         scene: {
@@ -179,12 +182,16 @@ wss.on('connection', (ws) => {
           total_scenes: scenes.length,
           story_scene_number: storySceneNumber,
           story_total_scenes: MAX_SCENES,
-          is_final: isFinal,
+          is_final: reachedStoryLimit,
         },
       });
+    }
 
-      generateImage(scene.image_prompt)
-        .then((image) => {
+    // Second loop: background sequential image generation to avoid API rate limits (N+1 parallel spam)
+    (async () => {
+      for (const scene of scenes) {
+        try {
+          const image = await generateImage(scene.image_prompt);
           if (image) {
             sendMessage('scene_image', {
               scene_id: scene.scene_id,
@@ -192,17 +199,17 @@ wss.on('connection', (ws) => {
               mimeType: image.mimeType,
             });
           }
-        })
-        .catch((err) => {
-          logDebug(`Image generation failed for scene ${scene.scene_id}:`, err.message);
-        });
+        } catch (err) {
+          logDebug(`Image generation failed for scene ${scene.scene_id}:`, err?.message || err);
+        }
+      }
 
       if (isFinal) {
         setTimeout(() => {
           sendMessage('story_complete', { message: uiStrings.storyComplete });
         }, 500);
       }
-    }
+    })();
   };
 
   const handleStartStory = async (payload) => {

@@ -71,6 +71,8 @@ export default function NarrationText({
     }
   };
 
+  const spanRef = useRef(null);
+
   useEffect(() => {
     clearTimers();
     setDisplayedText('');
@@ -87,7 +89,7 @@ export default function NarrationText({
         completionFiredRef.current = true;
         onComplete?.();
       }
-      return () => {};
+      return () => { };
     }
 
     const finishAll = () => {
@@ -106,7 +108,10 @@ export default function NarrationText({
       }
 
       setActiveBlockIndex(blockIndex);
-      setDisplayedText('');
+      // Don't spam React state, wipe the DOM node instead if available.
+      if (spanRef.current) {
+        spanRef.current.textContent = '';
+      }
       charIndexRef.current = 0;
       lastTsRef.current = 0;
       carryMsRef.current = 0;
@@ -122,6 +127,12 @@ export default function NarrationText({
       const chunkSize = blockText.length > 220 ? 3 : blockText.length > 140 ? 2 : 1;
 
       const tick = (ts) => {
+        if (!spanRef.current) {
+          // Skip if unmounted during loop
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+
         if (!lastTsRef.current) {
           lastTsRef.current = ts;
         }
@@ -137,11 +148,13 @@ export default function NarrationText({
           const nextIndex = Math.min(blockText.length, charIndexRef.current + (steps * chunkSize));
           if (nextIndex !== charIndexRef.current) {
             charIndexRef.current = nextIndex;
-            setDisplayedText(blockText.slice(0, nextIndex));
+            // First Principles: Update DOM directly. Bypasses React reconciliation tree entirely.
+            spanRef.current.textContent = blockText.slice(0, nextIndex);
           }
 
           if (nextIndex >= blockText.length) {
             rafRef.current = null;
+            setDisplayedText(blockText); // Sync state once at end
 
             if (blockIndex >= normalizedBlocks.length - 1) {
               setActiveBlockIndex(normalizedBlocks.length);
@@ -172,7 +185,6 @@ export default function NarrationText({
   const handleClick = () => {
     if (!isComplete && normalizedBlocks.length > 0) {
       clearTimers();
-      setDisplayedText('');
       setActiveBlockIndex(normalizedBlocks.length);
       setIsComplete(true);
       if (!completionFiredRef.current) {
@@ -202,7 +214,7 @@ export default function NarrationText({
           <p className={`narration-text__block narration-text__block--${activeBlock.kind}`}>
             <span className="narration-text__label">{labels[activeBlock.kind] || labels.narration}</span>
             <span className="narration-text__content">
-              {displayedText}
+              <span ref={spanRef}>{displayedText}</span>
               {!isComplete && <span className="narration-text__cursor">|</span>}
             </span>
           </p>

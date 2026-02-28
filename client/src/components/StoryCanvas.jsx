@@ -42,6 +42,9 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         opacity: Math.random() * 0.3 + 0.05,
         speedX: (Math.random() - 0.5) * 0.2,
         speedY: (Math.random() - 0.5) * 0.2,
+        // Native directional tendency
+        dirX: Math.random() > 0.5 ? 1 : -1,
+        dirY: (Math.random() - 0.5) * 2,
       });
     }
     particlesRef.current = particles;
@@ -162,10 +165,12 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
       ctx.fillStyle = `rgba(${moodConfig.r}, ${moodConfig.g}, ${moodConfig.b}, 0.6)`;
 
       particlesRef.current.forEach((p) => {
-        // Smoothly adjust speed based on mood
-        const targetSpeedX = (Math.random() > 0.5 ? 1 : -1) * moodConfig.speed;
-        p.speedX = lerp(p.speedX, targetSpeedX, 0.001);
-        p.speedY = lerp(p.speedY, (Math.random() - 0.5) * moodConfig.speed, 0.001);
+        // Smoothly adjust speed towards target based on mood and its native direction multiplier
+        const targetSpeedX = p.dirX * moodConfig.speed;
+        const targetSpeedY = p.dirY * moodConfig.speed;
+
+        p.speedX = lerp(p.speedX, targetSpeedX, 0.005);
+        p.speedY = lerp(p.speedY, targetSpeedY, 0.005);
 
         p.x += p.speedX;
         p.y += p.speedY;
@@ -177,10 +182,8 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         if (p.y > h) p.y = 0;
 
         ctx.globalAlpha = p.opacity;
-        // ctx.fillStyle is already set above loop
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        // Use fillRect instead of beginPath/arc/fill for extreme performance boost
+        ctx.fillRect(p.x, p.y, p.size, p.size);
       });
       ctx.globalAlpha = 1;
 

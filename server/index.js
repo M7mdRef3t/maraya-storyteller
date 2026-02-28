@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
 import path from 'path';
@@ -78,6 +79,7 @@ const wss = new WebSocketServer({
   maxPayload: 5 * 1024 * 1024,
 });
 
+app.use(helmet());
 app.use(express.json());
 app.get('/health', (req, res) => res.send('OK'));
 

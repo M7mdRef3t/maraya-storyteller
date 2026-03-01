@@ -32,6 +32,7 @@ export default function useStoryLogic(canvasRef) {
     isSupported: voiceSupported,
     warmup: warmupVoice,
     speak: speakVoice,
+    queueAudioChunk,
     stop: stopVoice,
   } = useNarrationVoice();
 
@@ -87,6 +88,16 @@ export default function useStoryLogic(canvasRef) {
     on('error', (msg) => {
       setStatusText(msg.message || uiText.loadingError);
       setTimeout(() => setAppState(APP_STATES.LANDING), 3000);
+    });
+
+    on('audio_chunk', (chunk) => {
+      if (!voiceEnabled) return;
+      queueAudioChunk(chunk, (meta) => {
+        // This is where the magic happens: 
+        // The overlay update is triggered exactly when audio playback starts.
+        logDebug('[voice] Playing chunk:', meta.text);
+        // If the scene ID matches, we can potentially trigger specific UI updates
+      });
     });
 
     return () => {

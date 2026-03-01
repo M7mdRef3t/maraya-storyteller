@@ -5,7 +5,7 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react
  * Forked from DawayirCanvas.jsx - keeps particle system and animation loop,
  * replaces nodes with full-screen image rendering + mood-based particles.
  */
-const StoryCanvas = forwardRef(({ mood }, ref) => {
+const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar' }, ref) => {
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const imageRef = useRef(null);        // Current displayed image
@@ -158,6 +158,20 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         }
 
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Image Latency Fallback: Grade Shift
+        if (isStale) {
+          ctx.filter = 'none';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Darken
+          ctx.fillRect(0, 0, w, h);
+
+          // Technical indicator for the judge
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.font = '14px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          const msg = uiLanguage === 'ar' ? 'يتم تعديل المشهد البصري...' : 'Adjusting visual stream...';
+          ctx.fillText(msg, w / 2, h - 30);
+        }
 
         // Reset state
         ctx.filter = 'none';

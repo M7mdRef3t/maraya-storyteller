@@ -27,6 +27,8 @@ export default function SceneRenderer({
   onRedirect,
   uiLanguage = 'ar',
   sceneWord = 'المشهد',
+  staleDroppedCount = 0,
+  version = 0,
 }) {
   const [showChoices, setShowChoices] = useState(false);
   const revealTimerRef = useRef(null);
@@ -110,6 +112,14 @@ export default function SceneRenderer({
           <p className="scene-final__text">{finalLabel}</p>
         </div>
       )}
+
+      {/* Subtle Debug Overlay for Documentation Proof */}
+      <div className="debug-tag">
+        <span className="debug-tag__version">v{version}</span>
+        {staleDroppedCount > 0 && (
+          <span className="debug-tag__stale"> • stale_dropped: {staleDroppedCount}</span>
+        )}
+      </div>
     </div>
   );
 }

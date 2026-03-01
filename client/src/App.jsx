@@ -34,11 +34,12 @@ export default function App() {
     handleModeChange,
     handleToggleVoice,
     handleToggleMusic,
+    imageStale,
   } = useStoryLogic(canvasRef);
 
   return (
     <div className="app" dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
-      <StoryCanvas ref={canvasRef} mood={currentMood} />
+      <StoryCanvas ref={canvasRef} mood={currentMood} isStale={imageStale} />
 
       <div className="app__overlay">
         {appState === APP_STATES.LANDING && !showSpaceUpload && (
@@ -79,6 +80,8 @@ export default function App() {
             onChoose={handleChoose}
             onRedirect={handleRedirect}
             isFinal={currentScene.is_final}
+            staleDroppedCount={staleDroppedCount}
+            version={lastAcceptedVersion}
           />
         )}
 

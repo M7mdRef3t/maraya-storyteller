@@ -1,79 +1,71 @@
-# Architecture Diagram
+# Maraya Storyteller — System Architecture
 
-## System diagram (Mermaid)
+Maraya is a live, agentic cinematic storyteller built for the Google Gemini API Developer Competition. It transitions from traditional turn-based AI to a continuous, interleaved media stream.
+
+## High-Level Architecture
 
 ```mermaid
-flowchart LR
-  U[User Browser] -->|Emotion or image upload| FE[React Frontend]
-  FE -->|WebSocket start_story / choose| BE[Node.js Backend]
-  BE -->|Schema-constrained scene generation| GM[Gemini Text Model]
-  BE -->|Space emotion analysis| GM
-  BE -->|Scene image generation| IM[Imagen and Gemini Image Fallback]
-  GM --> BE
-  IM --> BE
-  BE -->|scene events and scene_image events| FE
-  FE -->|Interleaved rendering and branching UX| U
+graph TD
+    User((User))
+    
+    subgraph Frontend [React Cinematic Renderer]
+        UI[Overlay & Controls]
+        Canvas[StoryCanvas - WebGL/Particles]
+        Audio[Web Audio Narration Engine]
+        WS_Client[WebSocket Client]
+    end
 
-  subgraph GCP[Google Cloud]
-    CR[Cloud Run service]
-    CB[Cloud Build]
-    AR[Artifact Registry image]
-    TF[Terraform IaC]
-  end
+    subgraph Backend [Node.js Orchestrator - Cloud Run]
+        WS_Server[WebSocket Server]
+        Controller[Scene Orchestrator]
+        History[Conversation Memory]
+        Abort[AbortController Manager]
+    end
 
-  BE -. deployed to .-> CR
-  CB --> AR --> CR
-  TF -. provisions .-> CR
+    subgraph Google_Cloud_AI [Google GenAI Ecosystem]
+        Gemini[Gemini 1.5 Flash - Interleaved Planner]
+        Imagen[Imagen 3 - Cinematic Frames]
+        TTS[Google Cloud Text-to-Speech]
+    end
+
+    User --> UI
+    UI --> WS_Client
+    WS_Client <==> WS_Server
+    WS_Server --> Controller
+    Controller --> History
+    Controller --> Gemini
+    Controller --> Imagen
+    Controller --> TTS
+    
+    Gemini -- "Interleaved Plan" --> Controller
+    Imagen -- "Image Bytes" --> WS_Server
+    TTS -- "Audio Stream" --> WS_Server
+    
+    WS_Server -- "Versioned Packets" --> WS_Client
 ```
 
-## Request lifecycle
+## Key Architectural Decisions
 
-1. User chooses emotion or uploads a room image.
-2. Frontend sends `start_story` over WebSocket with selected `output_mode`.
-3. Backend optionally analyzes image mood using Gemini.
-4. Backend generates structured scenes using Gemini with JSON schema constraints.
-5. Backend emits scene text blocks immediately, then pushes generated image when ready.
-6. User selects a branch choice.
-7. Frontend sends `choose`, backend continues story statefully until final scene.
+### 1. Interleaved Planning
+Instead of generating plain text, Gemini 1.5 Flash is prompted to act as a **Creative Director**. It outputs a structured JSON timeline containing narration segments, image prompts, and musical mood shifts. This allows the backend to stream media components as they become ready, providing a seamless "interleaved" experience.
 
-## Component responsibilities
+### 2. Surgical Live Redirection
+Maraya supports mid-stream narrative pivots. When a user changes the mood (e.g., to "Nightmare"), the system:
+1.  **Aborts** all in-flight AI generations using `AbortController`.
+2.  **Clears** the client-side playback queues.
+3.  **Increments** a `sceneVersion` counter to ensure any late-arriving packets from previous generations are discarded.
+4.  **Re-plans** the story trajectory starting from the current scene index, maintaining continuity while forcing a hard stylistic pivot.
 
-- Frontend (`client/`)
-  - Collects multimodal input.
-  - Lets user select narrative mode: Judge English, Arabic Fusha, Egyptian colloquial.
-  - Renders interleaved blocks (`narration`, `visual`, `reflection`) and scene progress.
-  - Handles reconnect/status UX.
-- Backend (`server/`)
-  - Maintains story state per WebSocket connection.
-  - Builds mode-specific prompts and UI status strings.
-  - Generates scenes with Gemini and validates/normalizes output.
-  - Generates scene images asynchronously and streams updates.
-- AI services (`server/services/`)
-  - `gemini.js`: structured text generation + image-based space analysis.
-  - `imagen.js`: image generation with model fallback strategy.
-- Cloud and deployment
-  - Cloud Run: backend hosting.
-  - Cloud Build: image build/deploy.
-  - Terraform: reproducible infrastructure provisioning.
+### 3. Versioned Media Gating
+To guarantee stability during rapid redirection, every WebSocket packet (text, audio chunk, image) is tagged with a `v` (version) property. The frontend maintains a `lastAcceptedVersion` state and silently drops any media that belongs to an aborted trajectory.
 
-## Grounding and reliability choices
+### 4. Cinematic Image Fallback
+To solve the inherent latency of high-quality image generation (Imagen 3), the frontend implements a **900ms Pacing Guard**. If a new frame isn't ready when the narration starts, the system applies a "Grade Shift" (Overlay + Blur) to the previous frame and displays a technical status message, ensuring the audio and narrative flow never stop.
 
-- Structured output schema reduces malformed scene responses.
-- Output mode normalization prevents unsupported language mode values.
-- Model fallback strategy handles deprecated or unavailable model names.
-- Health endpoint (`/health`) and scripted deploy reduce judging risk.
-
-## Code traceability map
-
-- WebSocket orchestration: `server/index.js`
-- Prompting and output modes: `server/prompts/storyteller.js`
-- Gemini structured generation: `server/services/gemini.js`
-- Image generation fallback: `server/services/imagen.js`
-- Frontend live rendering: `client/src/components/SceneRenderer.jsx`
-- Narrative mode UX: `client/src/components/EmotionPicker.jsx`
-
-## Export PNG for Devpost upload
-
-1. Copy contents of `docs/ARCHITECTURE_DIAGRAM.mmd`.
-2. Paste into https://mermaid.live.
-3. Export as PNG and upload to Devpost architecture section.
+## Technology Stack
+*   **Runtime:** Node.js / Express
+*   **Frontend:** React / Vite / Canvas API
+*   **Intelligence:** Gemini 1.5 Flash
+*   **Visuals:** Imagen 3 (imagen-3.0-generate-002)
+*   **Voice:** Google Cloud Text-to-Speech
+*   **Deployment:** Google Cloud Run / Docker

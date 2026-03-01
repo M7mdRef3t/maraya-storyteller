@@ -166,11 +166,12 @@ wss.on('connection', (ws) => {
   let currentEmotion = 'hope';
   let currentOutputMode = 'judge_en';
   let sceneCount = 0;
+  let currentSceneVersion = 0;
   let abortController = new AbortController();
 
   const sendMessage = (type, data) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type, ...data }));
+      ws.send(JSON.stringify({ type, v: currentSceneVersion, ...data }));
     }
   };
 
@@ -291,6 +292,7 @@ wss.on('connection', (ws) => {
 
   const handleStartStory = async (payload) => {
     try {
+      currentSceneVersion += 1;
       abortController.abort();
       abortController = new AbortController();
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
@@ -358,6 +360,7 @@ wss.on('connection', (ws) => {
 
   const handleChoice = async (payload) => {
     try {
+      currentSceneVersion += 1;
       abortController.abort();
       abortController = new AbortController();
       if (sceneCount >= MAX_SCENES) {
@@ -421,6 +424,7 @@ wss.on('connection', (ws) => {
     try {
       const { sceneId, atIndex, command, intensity } = payload;
 
+      currentSceneVersion += 1;
       // 1. Abort current background generation (images + TTS)
       abortController.abort();
       abortController = new AbortController();

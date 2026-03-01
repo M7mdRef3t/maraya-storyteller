@@ -10,6 +10,7 @@ export default function useNarrationVoice() {
   const isPlayingRef = useRef(false);
   const currentSourceRef = useRef(null);
   const currentGainNodeRef = useRef(null);
+  const currentVoiceVersionRef = useRef(0);
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
 
   // Initialize Audio Context on first interaction
@@ -55,6 +56,14 @@ export default function useNarrationVoice() {
   const playNextInQueue = useCallback(async () => {
     if (isPlayingRef.current || queueRef.current.length === 0) return;
 
+    // Check version
+    const nextChunk = queueRef.current[0];
+    if (nextChunk.version && nextChunk.version < currentVoiceVersionRef.current) {
+      queueRef.current.shift();
+      playNextInQueue();
+      return;
+    }
+
     isPlayingRef.current = true;
     const { blob, meta, onStart } = queueRef.current.shift();
 
@@ -93,6 +102,9 @@ export default function useNarrationVoice() {
   }, [initAudio]);
 
   const queueAudioChunk = useCallback((chunk, onStart) => {
+    if (chunk.version) {
+      currentVoiceVersionRef.current = Math.max(currentVoiceVersionRef.current, chunk.version);
+    }
     queueRef.current.push({ ...chunk, onStart });
     if (!isPlayingRef.current) {
       playNextInQueue();

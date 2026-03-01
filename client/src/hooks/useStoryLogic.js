@@ -22,7 +22,11 @@ export default function useStoryLogic(canvasRef) {
   const [storyMode, setStoryMode] = useState('judge_en');
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [lastAcceptedVersion, setLastAcceptedVersion] = useState(0);
+  const [imageStale, setImageStale] = useState(false);
+  const [staleDroppedCount, setStaleDroppedCount] = useState(0);
   const redirectTimerRef = useRef(null);
+  const imageFallbackTimerRef = useRef(null);
 
   const uiLanguage = getModeUiLanguage(storyMode);
   const uiText = useMemo(() => UI_COPY[uiLanguage] || UI_COPY.en, [uiLanguage]);
@@ -63,53 +67,90 @@ export default function useStoryLogic(canvasRef) {
   // Register WebSocket message handlers
   useEffect(() => {
     on('status', (msg) => {
+      if (msg.v < lastAcceptedVersion) {
+        setStaleDroppedCount(prev => prev + 1);
+        return;
+      }
       setStatusText(msg.text);
     });
 
     on('space_reading', (msg) => {
+      if (msg.v < lastAcceptedVersion) {
+        setStaleDroppedCount(prev => prev + 1);
+        return;
+      }
       setSpaceReading(msg.reading);
     });
 
     on('scene', (msg) => {
+      if (msg.v < lastAcceptedVersion) {
+        setStaleDroppedCount(prev => prev + 1);
+        return;
+      }
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+      if (imageFallbackTimerRef.current) clearTimeout(imageFallbackTimerRef.current);
+
+      setLastAcceptedVersion(msg.v);
+      setImageStale(true);
+
+      // Reset image fallback timer for current scene
+      imageFallbackTimerRef.current = setTimeout(() => {
+        // Explicitly handled in UI if stale
+      }, 900);
+
       const scene = msg.scene;
       setSceneQueue((prev) => [...prev, scene]);
     });
 
     on('scene_image', (msg) => {
+      if (msg.v < lastAcceptedVersion) {
+        setStaleDroppedCount(prev => prev + 1);
+        return;
+      }
+      if (imageFallbackTimerRef.current) clearTimeout(imageFallbackTimerRef.current);
+      setImageStale(false);
+
       if (canvasRef.current) {
         canvasRef.current.setImage(msg.image, msg.mimeType);
       }
     });
 
     on('story_complete', (msg) => {
+      if (msg.v < lastAcceptedVersion) return;
       setEndingMessage(msg.message);
       setAppState(APP_STATES.ENDING);
     });
 
     on('error', (msg) => {
+      if (msg.v < lastAcceptedVersion) return;
       setStatusText(msg.message || uiText.loadingError);
       setTimeout(() => setAppState(APP_STATES.LANDING), 3000);
     });
 
     on('audio_chunk', (chunk) => {
+      if (chunk.v < lastAcceptedVersion) {
+        setStaleDroppedCount(prev => prev + 1);
+        return;
+      }
       if (!voiceEnabled) return;
-      queueAudioChunk(chunk, (meta) => {
-        // This is where the magic happens: 
-        // The overlay update is triggered exactly when audio playback starts.
+      queueAudioChunk({ ...chunk, version: chunk.v }, (meta) => {
+        // Playback start trigger
       });
     });
 
     on('redirect_ack', (msg) => {
-      // Stop the text typing and audio queues
+      if (msg.v < lastAcceptedVersion) return;
+      setLastAcceptedVersion(msg.v);
       stopVoice();
     });
 
     on('audio_cancel', (msg) => {
+      if (msg.v < lastAcceptedVersion) return;
       stopVoice();
     });
 
     on('timeline_reset', (msg) => {
+      if (msg.v < lastAcceptedVersion) return;
       setSceneQueue([]);
     });
 
@@ -125,7 +166,7 @@ export default function useStoryLogic(canvasRef) {
       off('audio_cancel');
       off('timeline_reset');
     };
-  }, [on, off, uiText.loadingError, canvasRef, voiceEnabled, queueAudioChunk, stopVoice]);
+  }, [on, off, uiText.loadingError, canvasRef, voiceEnabled, queueAudioChunk, stopVoice, lastAcceptedVersion]);
 
   // Process scene queue: show scenes one at a time
   useEffect(() => {
@@ -241,6 +282,26 @@ export default function useStoryLogic(canvasRef) {
     });
   }, [currentScene, uiLanguage, sendMessage, stopVoice, storyMode]);
 
+  useEffect(() => {
+    // Spam test harness
+    window.runMarayaSpamTest = () => {
+      console.log("--- STARTING SPAM TEST ---");
+      let count = 0;
+      const commands = ["Nightmare", "Hope", "Darker", "Cinematic", "Witty"];
+      const interval = setInterval(() => {
+        const cmd = commands[Math.floor(Math.random() * commands.length)];
+        console.log(`[SPAM] Sending redirect ${count + 1}/10: ${cmd}`);
+        handleRedirect(cmd, 0.8);
+        count++;
+        if (count >= 10) {
+          clearInterval(interval);
+          console.log("--- SPAM TEST COMPLETE ---");
+        }
+      }, 1200);
+    };
+    return () => { delete window.runMarayaSpamTest; };
+  }, [handleRedirect]);
+
   const handleRestart = useCallback(() => {
     setAppState(APP_STATES.LANDING);
     setShowSpaceUpload(false);
@@ -302,9 +363,12 @@ export default function useStoryLogic(canvasRef) {
     musicEnabled,
     voiceEnabled,
     voiceSupported,
+    imageStale,
     uiLanguage,
     uiText,
     isConnected,
+    staleDroppedCount,
+    lastAcceptedVersion,
     handleNarrationBlock,
     handleSelectEmotion,
     handleUploadSpace,

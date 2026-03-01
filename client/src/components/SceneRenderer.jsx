@@ -31,7 +31,9 @@ export default function SceneRenderer({
   version = 0,
 }) {
   const [showChoices, setShowChoices] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const revealTimerRef = useRef(null);
+  const debugTimerRef = useRef(null);
   const finalLabel = uiLanguage === 'en' ? '— End of Journey —' : '— نهاية الرحلة —';
 
   const progressCurrent = Number.isFinite(scene?.story_scene_number)
@@ -51,11 +53,20 @@ export default function SceneRenderer({
   }, [scene?.scene_id]);
 
   useEffect(() => () => {
-    if (revealTimerRef.current) {
-      clearTimeout(revealTimerRef.current);
-      revealTimerRef.current = null;
-    }
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (debugTimerRef.current) clearTimeout(debugTimerRef.current);
   }, []);
+
+  // Show debug overlay on version change (redirect)
+  useEffect(() => {
+    if (version > 0) {
+      setShowDebug(true);
+      if (debugTimerRef.current) clearTimeout(debugTimerRef.current);
+      debugTimerRef.current = setTimeout(() => {
+        setShowDebug(false);
+      }, 3000);
+    }
+  }, [version]);
 
   const handleNarrationComplete = useCallback(() => {
     // Delay choice appearance for dramatic effect.
@@ -93,7 +104,7 @@ export default function SceneRenderer({
 
       <NarrationText
         blocks={scene.interleaved_blocks}
-        text={scene.narration}
+        text={scene.narration_ar}
         uiLanguage={uiLanguage}
         onBlockStart={onNarrationBlock}
         onComplete={handleNarrationComplete}
@@ -114,7 +125,7 @@ export default function SceneRenderer({
       )}
 
       {/* Subtle Debug Overlay for Documentation Proof */}
-      <div className="debug-tag">
+      <div className={`debug-tag ${showDebug ? 'debug-tag--visible' : ''}`}>
         <span className="debug-tag__version">v{version}</span>
         {staleDroppedCount > 0 && (
           <span className="debug-tag__stale"> • stale_dropped: {staleDroppedCount}</span>

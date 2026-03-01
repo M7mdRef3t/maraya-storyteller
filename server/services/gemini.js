@@ -39,7 +39,7 @@ const SCENE_SCHEMA = {
             type: 'string',
             description: 'Unique scene identifier',
           },
-          narration: {
+          narration_ar: {
             type: 'string',
             description: 'Poetic narration in the requested language (Arabic or English), 2-3 sentences based on the output_mode',
           },

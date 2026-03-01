@@ -245,7 +245,7 @@ wss.on('connection', (ws) => {
       for (const scene of scenes) {
         if (signal && signal.aborted) return;
         try {
-          const textToNarrate = scene.narration || '';
+          const textToNarrate = scene.narration_ar || '';
           if (!textToNarrate) continue;
 
           // Split into manageable chunks for pacing

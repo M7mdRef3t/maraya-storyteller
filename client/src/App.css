@@ -38,6 +38,26 @@ body,
   width: 100%;
   height: 100%;
   position: relative;
+  background: radial-gradient(circle at 50% 50%, #0a0a0f 0%, #030305 100%);
+  overflow: hidden;
+}
+
+.app::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(30, 30, 60, 0.05) 0%, transparent 60%);
+  animation: bgRotate 30s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes bgRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .app__overlay {
@@ -196,8 +216,12 @@ body,
 .emotion-card--active {
   background: var(--card-gradient);
   border-color: var(--card-color);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px color-mix(in srgb, var(--card-color) 30%, transparent);
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 30px color-mix(in srgb, var(--card-color) 45%, transparent);
+}
+
+.emotion-card:active {
+  transform: scale(0.97);
 }
 
 .emotion-card__icon {
@@ -788,6 +812,44 @@ body,
   filter: grayscale(0%) opacity(1);
   transform: scale(1.2);
 }
-.debug-tag { position: fixed; bottom: 1rem; left: 1rem; display: flex; gap: 0.5rem; padding: 0.2rem 0.5rem; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.3rem; color: rgba(255, 255, 255, 0.3); font-family: monospace; font-size: 0.7rem; pointer-events: none; z-index: 200; text-transform: uppercase; }
+.debug-tag {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.3rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace;
+  font-size: 0.7rem;
+  pointer-events: none;
+  z-index: 200;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.4s var(--ease-smooth);
+}
+
+.debug-tag--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.debug-tag__version {
+  color: #fff;
+  font-weight: 700;
+}
+
+.debug-tag__stale {
+  color: #ff5e5e;
+  font-weight: 700;
+}
 .debug-tag__version { color: rgba(255, 255, 255, 0.5); }
 .debug-tag__stale { color: #ff5e5e; }
+
+
+

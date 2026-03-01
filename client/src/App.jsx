@@ -35,6 +35,8 @@ export default function App() {
     handleToggleVoice,
     handleToggleMusic,
     imageStale,
+    staleDroppedCount,
+    lastAcceptedVersion,
   } = useStoryLogic(canvasRef);
 
   return (

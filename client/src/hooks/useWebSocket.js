@@ -12,6 +12,8 @@ export default function useWebSocket() {
   const reconnectTimerRef = useRef(null);
   const shouldReconnectRef = useRef(true);
 
+  const lastMetaRef = useRef(null);
+
   const connect = useCallback(() => {
     if (
       wsRef.current?.readyState === WebSocket.OPEN ||
@@ -49,8 +51,6 @@ export default function useWebSocket() {
       }
     };
 
-    const lastMetaRef = useRef(null);
-
     ws.onmessage = async (event) => {
       // 1. Handle Binary Frames (Audio Data)
       if (event.data instanceof Blob) {
@@ -58,7 +58,7 @@ export default function useWebSocket() {
         if (handler && lastMetaRef.current) {
           handler({
             meta: lastMetaRef.current,
-            blob: event.data
+            blob: event.data,
           });
           lastMetaRef.current = null; // Consume the meta
         }
@@ -79,7 +79,7 @@ export default function useWebSocket() {
           handler(message);
         }
 
-        // Generic broadaster
+        // Generic broadcaster
         if (handlersRef.current['*']) {
           handlersRef.current['*'](message);
         }

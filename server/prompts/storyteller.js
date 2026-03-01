@@ -66,34 +66,52 @@ const OUTPUT_MODE_CONFIG = {
     interleavedHint: 'Interleaved block text should be in English.',
   },
   ar_fusha: {
-    name: 'Arabic Fusha',
-    languageName: 'Arabic Fusha',
+    name: 'Arabic Fusha (Poetic)',
+    languageName: 'Arabic (MSA)',
     narrativeRules: [
-      'اكتب بالعربية الفصحى الأدبية بلغة شاعرية واضحة.',
+      'اكتب بالعربية الفصحى الأدبية بلغة شاعرية وبلاغة عالية.',
+      'استخدم صوراً جمالية واستعارات معمارية عميقة (الجدران كحدود نفسية، النوافذ كوضوح).',
+      'تجنب الكلمات المعقدة جداً التي تعيق التدفق، لكن حافظ على الفخامة.',
       'كل سطر سردي من جملتين إلى ثلاث فقط.',
-      'استخدم استعارات معمارية دقيقة ومفهومة.',
     ],
     choiceRules: [
-      'الاختيارات تكون بالعربية الفصحى.',
+      'الاختيارات تكون بالعربية الفصحى الرصينة.',
       'الاختيار الأول للمواجهة والاستكشاف.',
       'الاختيار الثاني للتأمل والتقبّل.',
     ],
-    interleavedHint: 'نصوص interleaved تكون بالعربية الفصحى.',
+    interleavedHint: 'نصوص interleaved تكون بالعربية الفصحى الأدبية.',
   },
   ar_egyptian: {
-    name: 'Egyptian Colloquial Arabic',
-    languageName: 'Egyptian Arabic',
+    name: 'Egyptian Arabic (Authentic)',
+    languageName: 'Egyptian Colloquial',
     narrativeRules: [
-      'اكتب بلهجة مصرية طبيعية مفهومة بدون ابتذال.',
-      'حافظ على النبرة الشعرية لكن بصياغة مصرية قريبة.',
+      'اكتب بلهجة مصرية طبيعية، "لغة بيضا" مفهومة لكل العرب بدون ابتذال.',
+      'استخدم مفردات مصرية دافئة (بص، إنت، إحنا، يعني) باعتدال لتقريب المسافة.',
+      'حافظ على العمق النفسي للمشهد رغم استخدام العامية.',
       'كل سطر سردي من جملتين إلى ثلاث فقط.',
     ],
     choiceRules: [
-      'الاختيارات تكون بالعامية المصرية الواضحة.',
-      'الاختيار الأول يميل للمواجهة والاكتشاف.',
-      'الاختيار الثاني يميل للتأمل والهدوء.',
+      'الاختيارات تكون بالعامية المصرية الواضحة الذكية.',
+      'الاختيار الأول يميل للحركة والفضول.',
+      'الاختيار الثاني يميل للصمت والتحليل.',
     ],
-    interleavedHint: 'نصوص interleaved تكون بالعامية المصرية.',
+    interleavedHint: 'نصوص interleaved تكون بالعامية المصرية الراقية.',
+  },
+  ar_educational: {
+    name: 'Arabic Educational (Clear)',
+    languageName: 'Arabic (Simplified MSA)',
+    narrativeRules: [
+      'اكتب بلغة عربية فصحى مبسطة مباشرة (لغة تعليمية).',
+      'ركز على الوضوح التام والترابط المنطقي بين الأحداث.',
+      'استخدم تشكيلاً جزئياً للكلمات الملتبسة لسهولة القراءة والنطق.',
+      'تجنب المحسنات البديعية المعقدة.',
+    ],
+    choiceRules: [
+      'الاختيارات واضحة، تعليمية، وتحدد مساراً معرفياً.',
+      'الاختيار الأول للتطبيق العملي.',
+      'الاختيار الثاني للمراجعة والنظرية.',
+    ],
+    interleavedHint: 'نصوص interleaved تكون بسيطة ومباشرة مشكولة جزئياً.',
   },
 };
 
@@ -127,6 +145,7 @@ function getVisualLanguageSection(style) {
 function getImagePromptRulesSection() {
   return `IMAGE PROMPT RULES
 - image_prompt must always be in English.
+- IMPORTANT: Do not include any text, letters, or words inside the image itself.
 - Include architecture style, cinematic lighting, 16:9 composition, and mood.
 - Keep visual continuity across all scenes.
 - If emotion shifts positively, gradually transition toward biophilic visual cues.`;

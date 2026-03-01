@@ -106,13 +106,24 @@ function buildUiStrings(outputMode) {
     };
   }
 
+  if (outputMode === 'ar_educational') {
+    return {
+      readingSpace: 'المرايا تحلل مساحتك التعليمية...',
+      shapingStory: 'المرايا تبدأ الجلسة التعليمية...',
+      nextScene: 'المشهد التعليمي التالي يتشكل...',
+      storyComplete: 'أتممت الجلسة التعليمية بنجاح. العلم هو المفتاح.',
+      startErrorPrefix: 'حدث خطأ في بدء الجلسة:',
+      nextError: 'تعذر تحميل الجزء التعليمي التالي.',
+    };
+  }
+
   return {
-    readingSpace: 'المرايا تقرأ مكانك...',
-    shapingStory: 'المرايا تتشكل...',
-    nextScene: 'المشهد التالي يتشكل...',
-    storyComplete: 'وصلتَ إلى نهاية هذه الرحلة. لكنّ المرايا لا تنتهي...',
-    startErrorPrefix: 'فشل في بدء القصة:',
-    nextError: 'فشل في إنشاء المشهد التالي.',
+    readingSpace: 'المرايا تقرأ مكانك بحسٍّ شاعري...',
+    shapingStory: 'المرايا تتشكل من صميم خيالك...',
+    nextScene: 'المشهد التالي يتجلى في الأفق...',
+    storyComplete: 'وصلتَ إلى نهاية هذه الرحلة الروحية. لكنّ المرايا لا تنتهي...',
+    startErrorPrefix: 'فشل في بدء التجربة:',
+    nextError: 'فشل في استحضار المشهد التالي.',
   };
 }
 
@@ -128,6 +139,13 @@ function buildFallbackChoices(outputMode) {
     return [
       { text_ar: 'تتحرك نحية الممر المنوّر وتواجه اللي مستنيك.', emotion_shift: 'hope' },
       { text_ar: 'تفضل مكانك شوية وتسمع صدى المكان قبل ما تتحرك.', emotion_shift: 'nostalgia' },
+    ];
+  }
+
+  if (outputMode === 'ar_educational') {
+    return [
+      { text_ar: 'توجّه نحو المصدر الضوئي لتفهم القاعدة الأساسية.', emotion_shift: 'hope' },
+      { text_ar: 'توقف وراجع ما تعلمته قبل المتابعة.', emotion_shift: 'nostalgia' },
     ];
   }
 
@@ -288,7 +306,11 @@ wss.on('connection', (ws) => {
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
 
-      const choiceText = validateChoiceText(payload.choice_text || '');
+      let choiceText = validateChoiceText(payload.choice_text || '');
+      if (currentOutputMode.startsWith('ar')) {
+        const { normalizeArabicText } = await import('./services/utils.js');
+        choiceText = normalizeArabicText(choiceText);
+      }
       const emotionShift = validateEmotion(payload.emotion_shift || currentEmotion);
 
       if (emotionShift && emotionShift !== currentEmotion) {

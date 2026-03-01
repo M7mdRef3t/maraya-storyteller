@@ -232,6 +232,55 @@ wss.on('connection', (ws) => {
         }, 500);
       }
     })();
+
+    // Third loop: Background narration generation with OpenAI TTS
+    (async () => {
+      // Small delay to allow frontend to start showing the scene
+      await new Promise((r) => setTimeout(r, 1000));
+
+      for (const scene of scenes) {
+        try {
+          const textToNarrate = scene.narration_ar || '';
+          if (!textToNarrate) continue;
+
+          // Split into manageable chunks for pacing
+          const chunks = chunkArabic(textToNarrate);
+          logDebug(`[tts] Generated ${chunks.length} chunks for scene ${scene.scene_id}`);
+
+          sendMessage('audio_start', { sceneId: scene.scene_id, count: chunks.length });
+
+          for (let i = 0; i < chunks.length; i++) {
+            const chunkText = chunks[i];
+
+            // 1. Send meta data first
+            sendMessage('audio_meta', {
+              sceneId: scene.scene_id,
+              index: i,
+              text: chunkText,
+              format: 'mp3',
+              voice: 'nova',
+            });
+
+            // 2. Generate and send binary audio data
+            const audioBuffer = await ttsOpenAI({
+              text: chunkText,
+              voice: 'nova',
+              format: 'mp3',
+            });
+
+            if (ws.readyState === WebSocket.OPEN) {
+              // Send raw binary frame
+              ws.send(audioBuffer, { binary: true });
+              logDebug(`[tts] Sent audio chunk ${i} for scene ${scene.scene_id}`);
+            }
+          }
+
+          sendMessage('audio_end', { sceneId: scene.scene_id });
+        } catch (err) {
+          logError(`[tts] Narration failed for scene ${scene.scene_id}:`, err?.message || err);
+        }
+      }
+    })();
   };
 
   const handleStartStory = async (payload) => {

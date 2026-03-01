@@ -49,16 +49,37 @@ export default function useWebSocket() {
       }
     };
 
-    ws.onmessage = (event) => {
+    const lastMetaRef = useRef(null);
+
+    ws.onmessage = async (event) => {
+      // 1. Handle Binary Frames (Audio Data)
+      if (event.data instanceof Blob) {
+        const handler = handlersRef.current['audio_chunk'];
+        if (handler && lastMetaRef.current) {
+          handler({
+            meta: lastMetaRef.current,
+            blob: event.data
+          });
+          lastMetaRef.current = null; // Consume the meta
+        }
+        return;
+      }
+
+      // 2. Handle JSON Frames
       try {
         const message = JSON.parse(event.data);
-        const handler = handlersRef.current[message.type];
 
+        // If meta, store it to wait for the next binary frame
+        if (message.type === 'audio_meta') {
+          lastMetaRef.current = message;
+        }
+
+        const handler = handlersRef.current[message.type];
         if (handler) {
           handler(message);
         }
 
-        // Also fire a generic handler
+        // Generic broadaster
         if (handlersRef.current['*']) {
           handlersRef.current['*'](message);
         }

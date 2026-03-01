@@ -2,6 +2,15 @@
 import NarrationText from './NarrationText.jsx';
 import ChoiceButtons from './ChoiceButtons.jsx';
 
+const REDIRECT_COMMANDS = [
+  { id: 'darker', icon: '🔥', label: { ar: 'أغمق', en: 'Darker' }, intensity: 0.55 },
+  { id: 'hope', icon: '✨', label: { ar: 'أمل أكثر', en: 'More Hope' }, intensity: 0.60 },
+  { id: 'nightmare', icon: '😱', label: { ar: 'كابوس', en: 'Nightmare' }, intensity: 0.85 },
+  { id: 'witty', icon: '😂', label: { ar: 'خفيف وساخر', en: 'Light & Witty' }, intensity: 0.70 },
+  { id: 'cinematic', icon: '🎬', label: { ar: 'سينمائي بطيء', en: 'Cinematic' }, intensity: 0.65 },
+  { id: 'fast', icon: '⚡', label: { ar: 'إيقاع سريع', en: 'Fast-paced' }, intensity: 0.75 },
+];
+
 /**
  * SceneRenderer - Orchestrates the cinematic reveal of a single scene.
  *
@@ -15,6 +24,7 @@ export default function SceneRenderer({
   onChoose,
   isFinal,
   onNarrationBlock,
+  onRedirect,
   uiLanguage = 'ar',
   sceneWord = 'المشهد',
 }) {
@@ -63,6 +73,21 @@ export default function SceneRenderer({
       {progressCurrent && progressTotal ? (
         <div className="scene-progress">{sceneWord} {progressCurrent}/{progressTotal}</div>
       ) : null}
+
+      {!isFinal && onRedirect && (
+        <div className="live-redirect-bar">
+          {REDIRECT_COMMANDS.map(cmd => (
+            <button
+              key={cmd.id}
+              className="live-redirect-btn"
+              onClick={() => onRedirect(cmd.label.en, cmd.intensity)}
+              title={cmd.label[uiLanguage]}
+            >
+              {cmd.icon}
+            </button>
+          ))}
+        </div>
+      )}
 
       <NarrationText
         blocks={scene.interleaved_blocks}

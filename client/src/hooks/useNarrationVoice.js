@@ -8,6 +8,8 @@ export default function useNarrationVoice() {
   const audioContextRef = useRef(null);
   const queueRef = useRef([]);
   const isPlayingRef = useRef(false);
+  const currentSourceRef = useRef(null);
+  const currentGainNodeRef = useRef(null);
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
 
   // Initialize Audio Context on first interaction
@@ -25,11 +27,29 @@ export default function useNarrationVoice() {
     if (synthRef.current) {
       synthRef.current.cancel();
     }
-    // 2. Clear Queue and stop audio playback
+    // 2. Clear Queue
     queueRef.current = [];
+
+    // 3. 80ms Fade out for seamless cancel without clicking sounds
+    if (currentSourceRef.current && currentGainNodeRef.current && isPlayingRef.current && audioContextRef.current) {
+      const audioCtx = audioContextRef.current;
+      const gainNode = currentGainNodeRef.current;
+      const source = currentSourceRef.current;
+
+      try {
+        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08); // 80ms fade out
+
+        source.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {
+        source.stop();
+      }
+    }
+
+    currentSourceRef.current = null;
+    currentGainNodeRef.current = null;
     isPlayingRef.current = false;
-    // Note: To fully stop AudioContext buffer source, we'd need to track it. 
-    // For simplicity, we just clear the queue so nothing else plays.
   }, []);
 
   const playNextInQueue = useCallback(async () => {
@@ -47,10 +67,20 @@ export default function useNarrationVoice() {
 
       const source = audioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(audioContextRef.current.destination);
+
+      const gainNode = audioContextRef.current.createGain();
+      gainNode.gain.setValueAtTime(1, audioContextRef.current.currentTime);
+
+      source.connect(gainNode);
+      gainNode.connect(audioContextRef.current.destination);
+
+      currentSourceRef.current = source;
+      currentGainNodeRef.current = gainNode;
 
       source.onended = () => {
         isPlayingRef.current = false;
+        currentSourceRef.current = null;
+        currentGainNodeRef.current = null;
         playNextInQueue();
       };
 

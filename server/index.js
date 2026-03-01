@@ -166,6 +166,7 @@ wss.on('connection', (ws) => {
   let currentEmotion = 'hope';
   let currentOutputMode = 'judge_en';
   let sceneCount = 0;
+  let abortController = new AbortController();
 
   const sendMessage = (type, data) => {
     if (ws.readyState === WebSocket.OPEN) {
@@ -173,11 +174,12 @@ wss.on('connection', (ws) => {
     }
   };
 
-  const streamScenes = (scenes, baseSceneCount = 0, uiStrings, outputMode = currentOutputMode) => {
+  const streamScenes = (scenes, baseSceneCount = 0, uiStrings, outputMode = currentOutputMode, signal = abortController.signal) => {
     let isFinal = false;
 
     // First loop: stream the text for all scenes immediately
     for (let i = 0; i < scenes.length; i += 1) {
+      if (signal && signal.aborted) return;
       const scene = scenes[i];
       const storySceneNumber = baseSceneCount + i + 1;
       const reachedStoryLimit = storySceneNumber >= MAX_SCENES;
@@ -212,6 +214,7 @@ wss.on('connection', (ws) => {
     // Second loop: background sequential image generation to avoid API rate limits (N+1 parallel spam)
     (async () => {
       for (const scene of scenes) {
+        if (signal && signal.aborted) return;
         try {
           const image = await generateImage(scene.image_prompt);
           if (image) {
@@ -239,6 +242,7 @@ wss.on('connection', (ws) => {
       await new Promise((r) => setTimeout(r, 1000));
 
       for (const scene of scenes) {
+        if (signal && signal.aborted) return;
         try {
           const textToNarrate = scene.narration || '';
           if (!textToNarrate) continue;
@@ -250,6 +254,7 @@ wss.on('connection', (ws) => {
           sendMessage('audio_start', { sceneId: scene.scene_id, count: chunks.length });
 
           for (let i = 0; i < chunks.length; i++) {
+            if (signal && signal.aborted) return;
             const chunkText = chunks[i];
 
             // 1. Send meta data first
@@ -261,10 +266,13 @@ wss.on('connection', (ws) => {
             });
 
             // 2. Generate and send binary audio data via dispatcher
-            const audioBuffer = await generateNarrationAudio({
+            const audioPromise = generateNarrationAudio({
               text: chunkText,
               outputMode: currentOutputMode
             });
+            const audioBuffer = await audioPromise;
+
+            if (signal && signal.aborted) return;
 
             if (ws.readyState === WebSocket.OPEN) {
               // Send raw binary frame
@@ -283,6 +291,8 @@ wss.on('connection', (ws) => {
 
   const handleStartStory = async (payload) => {
     try {
+      abortController.abort();
+      abortController = new AbortController();
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
       let emotion = validateEmotion(payload.emotion || 'hope');
@@ -348,6 +358,8 @@ wss.on('connection', (ws) => {
 
   const handleChoice = async (payload) => {
     try {
+      abortController.abort();
+      abortController = new AbortController();
       if (sceneCount >= MAX_SCENES) {
         const uiStrings = buildUiStrings(currentOutputMode);
         sendMessage('story_complete', { message: uiStrings.storyComplete });
@@ -405,6 +417,64 @@ wss.on('connection', (ws) => {
     }
   };
 
+  const handleRedirect = async (payload) => {
+    try {
+      const { sceneId, atIndex, command, intensity } = payload;
+
+      // 1. Abort current background generation (images + TTS)
+      abortController.abort();
+      abortController = new AbortController();
+      const signal = abortController.signal;
+
+      const uiStrings = buildUiStrings(currentOutputMode);
+
+      // 2. Acknowledge and command client to clear queues & reset timeline
+      sendMessage('redirect_ack', { sceneId, fromIndex: atIndex });
+      sendMessage('audio_cancel', { sceneId, fromIndex: atIndex });
+      sendMessage('timeline_reset', { sceneId, fromIndex: atIndex });
+
+      log(`Redirect received for scene ${sceneId} at index ${atIndex}: ${command} (Intensity: ${intensity})`);
+
+      const redirectCommand = { command, intensity };
+
+      // Update System prompt to force hard pivot
+      const redirectPrompt = buildStorytellerPrompt(
+        currentEmotion,
+        true,
+        currentOutputMode,
+        false,
+        redirectCommand
+      );
+
+      // We explicitly log this as a surgical memory command in context
+      conversationHistory.push({
+        role: 'user',
+        parts: [{ text: `[LIVE REDIRECTION] Cancel the previous trajectory. Hard pivot tone/pacing to "${command}" with intensity ${intensity}. Regenerate seamlessly from scene ${sceneId}, index ${atIndex}. Output exactly 1 scene.` }]
+      });
+
+      const scenes = await generateScenes(redirectPrompt, conversationHistory, currentOutputMode);
+      if (!scenes || scenes.length === 0) {
+        throw new Error('No redirect scenes generated');
+      }
+
+      conversationHistory.push({
+        role: 'model',
+        parts: [{ text: JSON.stringify({ scenes }) }],
+      });
+
+      const baseSceneCount = sceneCount;
+      sceneCount += scenes.length;
+      log(`Generated ${scenes.length} redirect scenes`);
+
+      // 3. Stream new segments normally
+      streamScenes(scenes, baseSceneCount, uiStrings, currentOutputMode, signal);
+
+    } catch (error) {
+      logError('Redirect failed:', error.message);
+      sendMessage('error', { message: 'Failed to redirect timeline.' });
+    }
+  };
+
   ws.on('message', (data, isBinary) => {
     if (isBinary) return;
 
@@ -418,6 +488,9 @@ wss.on('connection', (ws) => {
           break;
         case 'choose':
           handleChoice(message);
+          break;
+        case 'redirect':
+          handleRedirect(message);
           break;
         default:
           logDebug('Unknown message type:', message.type);

@@ -191,11 +191,23 @@ function getSceneCountSection(isFollowUp) {
 ${arcRule ? `- ${arcRule}` : ''}`;
 }
 
+function getRedirectSection({ command, intensity }) {
+  const isHighIntensity = intensity > 0.75;
+
+  return `LIVE REDIRECTION (CRITICAL)
+- Hard pivot the tone, pacing, and visual style to: "${command}" (Intensity: ${intensity.toFixed(2)}/1.0).
+- Lexicon Shift: Drastically alter the vocabulary to match the new command.
+- Pacing: ${isHighIntensity ? 'Use much shorter, sharper sentences with long dramatic pauses.' : 'Adapt sentence length to the flow of the new mood.'}
+- Visual DNA Shift: Introduce new lighting, contrast, and color palettes that represent "${command}" while keeping the protagonist's core intact.
+- Seamlessly transition without breaking the narrative arc.`;
+}
+
 export function buildStorytellerPrompt(
   emotion,
   isFollowUp = false,
   outputMode = 'judge_en',
   allowFinalEnding = false,
+  redirectCommand = null,
 ) {
   const style = STYLE_MAP[emotion] || STYLE_MAP.hope;
   const modeKey = normalizeOutputMode(outputMode);
@@ -221,6 +233,8 @@ ${getChoiceRulesSection(mode, allowFinalEnding)}
 ${getAudioMoodSection()}
 
 ${getSceneCountSection(isFollowUp)}
+
+${redirectCommand ? getRedirectSection(redirectCommand) : ''}
 
 Return JSON only.`;
 }

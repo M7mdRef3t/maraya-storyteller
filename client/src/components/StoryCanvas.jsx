@@ -131,6 +131,14 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
       if (imageRef.current && imageOpacityRef.current > 0.01) {
         ctx.globalAlpha = Math.min(imageOpacityRef.current, 0.85);
 
+        // Add smart cinematic blur during image loading/transition
+        const blurFactor = (0.85 - ctx.globalAlpha) * 15; // Max 12px blur
+        if (blurFactor > 0.1) {
+          ctx.filter = `blur(${blurFactor}px)`;
+        } else {
+          ctx.filter = 'none';
+        }
+
         // Draw image covering the canvas (cover mode)
         const img = imageRef.current;
         const imgRatio = img.width / img.height;
@@ -150,6 +158,9 @@ const StoryCanvas = forwardRef(({ mood }, ref) => {
         }
 
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Reset state
+        ctx.filter = 'none';
         ctx.globalAlpha = 1;
       }
 

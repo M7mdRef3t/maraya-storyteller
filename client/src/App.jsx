@@ -9,7 +9,7 @@ import { APP_STATES } from './utils/constants.js';
 
 export default function App() {
   const canvasRef = useRef(null);
-  
+
   const {
     appState,
     showSpaceUpload,
@@ -29,6 +29,7 @@ export default function App() {
     handleSelectEmotion,
     handleUploadSpace,
     handleChoose,
+    handleRedirect,
     handleRestart,
     handleModeChange,
     handleToggleVoice,
@@ -76,6 +77,7 @@ export default function App() {
             sceneWord={uiText.sceneWord}
             onNarrationBlock={handleNarrationBlock}
             onChoose={handleChoose}
+            onRedirect={handleRedirect}
             isFinal={currentScene.is_final}
           />
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import useWebSocket from './useWebSocket.js';
 import useAudioMood from './useAudioMood.js';
 import useNarrationVoice from './useNarrationVoice.js';
@@ -22,6 +22,7 @@ export default function useStoryLogic(canvasRef) {
   const [storyMode, setStoryMode] = useState('judge_en');
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const redirectTimerRef = useRef(null);
 
   const uiLanguage = getModeUiLanguage(storyMode);
   const uiText = useMemo(() => UI_COPY[uiLanguage] || UI_COPY.en, [uiLanguage]);
@@ -70,6 +71,7 @@ export default function useStoryLogic(canvasRef) {
     });
 
     on('scene', (msg) => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
       const scene = msg.scene;
       setSceneQueue((prev) => [...prev, scene]);
     });
@@ -95,9 +97,20 @@ export default function useStoryLogic(canvasRef) {
       queueAudioChunk(chunk, (meta) => {
         // This is where the magic happens: 
         // The overlay update is triggered exactly when audio playback starts.
-        logDebug('[voice] Playing chunk:', meta.text);
-        // If the scene ID matches, we can potentially trigger specific UI updates
       });
+    });
+
+    on('redirect_ack', (msg) => {
+      // Stop the text typing and audio queues
+      stopVoice();
+    });
+
+    on('audio_cancel', (msg) => {
+      stopVoice();
+    });
+
+    on('timeline_reset', (msg) => {
+      setSceneQueue([]);
     });
 
     return () => {
@@ -107,8 +120,12 @@ export default function useStoryLogic(canvasRef) {
       off('scene_image');
       off('story_complete');
       off('error');
+      off('audio_chunk');
+      off('redirect_ack');
+      off('audio_cancel');
+      off('timeline_reset');
     };
-  }, [on, off, uiText.loadingError, canvasRef]);
+  }, [on, off, uiText.loadingError, canvasRef, voiceEnabled, queueAudioChunk, stopVoice]);
 
   // Process scene queue: show scenes one at a time
   useEffect(() => {
@@ -202,6 +219,28 @@ export default function useStoryLogic(canvasRef) {
     });
   }, [uiText.loadingNext, sendMessage, stopVoice, storyMode, canvasRef]);
 
+  const handleRedirect = useCallback((command, intensity = 0.8) => {
+    if (!currentScene) return;
+
+    setAppState(APP_STATES.LOADING);
+    setStatusText(uiLanguage === 'ar' ? 'يتم تعديل المسار...' : 'Re-planning...');
+
+    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    redirectTimerRef.current = setTimeout(() => {
+      setStatusText(uiLanguage === 'ar' ? 'ضبط المزاج...' : 'Adjusting mood...');
+    }, 600);
+
+    stopVoice();
+
+    sendMessage('redirect', {
+      sceneId: currentScene.scene_id,
+      atIndex: 0,
+      command,
+      intensity,
+      output_mode: storyMode
+    });
+  }, [currentScene, uiLanguage, sendMessage, stopVoice, storyMode]);
+
   const handleRestart = useCallback(() => {
     setAppState(APP_STATES.LANDING);
     setShowSpaceUpload(false);
@@ -270,6 +309,7 @@ export default function useStoryLogic(canvasRef) {
     handleSelectEmotion,
     handleUploadSpace,
     handleChoose,
+    handleRedirect,
     handleRestart,
     handleModeChange,
     handleToggleVoice,

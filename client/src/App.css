@@ -751,3 +751,40 @@ body,
   outline-offset: 4px;
   border-color: rgba(255, 255, 255, 0.5);
 }
+
+/* =============================================================================
+   Live Redirection Bar
+   ============================================================================= */
+
+.live-redirect-bar {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.8rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  border: 1px solid var(--glass-border);
+  z-index: 100;
+  animation: fadeInUp 0.5s var(--ease-spring);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.live-redirect-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 50%;
+  transition: transform 0.2s var(--ease-spring), filter 0.3s ease;
+  filter: grayscale(100%) opacity(0.4);
+}
+
+.live-redirect-btn:hover {
+  filter: grayscale(0%) opacity(1);
+  transform: scale(1.2);
+}

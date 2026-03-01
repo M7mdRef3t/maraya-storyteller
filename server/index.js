@@ -17,7 +17,7 @@ import { validateEmotion, validateChoiceText, validateBase64 } from './validator
 import { log, logDebug, logError } from './logger.js';
 
 // TTS & Narration
-import { ttsOpenAI } from './services/tts/openai.js';
+import { generateNarrationAudio } from './services/tts/index.js';
 import { chunkArabic } from './utils/tts/chunkArabic.js';
 
 dotenv.config();
@@ -240,7 +240,7 @@ wss.on('connection', (ws) => {
 
       for (const scene of scenes) {
         try {
-          const textToNarrate = scene.narration_ar || '';
+          const textToNarrate = scene.narration || '';
           if (!textToNarrate) continue;
 
           // Split into manageable chunks for pacing
@@ -258,14 +258,12 @@ wss.on('connection', (ws) => {
               index: i,
               text: chunkText,
               format: 'mp3',
-              voice: 'nova',
             });
 
-            // 2. Generate and send binary audio data
-            const audioBuffer = await ttsOpenAI({
+            // 2. Generate and send binary audio data via dispatcher
+            const audioBuffer = await generateNarrationAudio({
               text: chunkText,
-              voice: 'nova',
-              format: 'mp3',
+              outputMode: currentOutputMode
             });
 
             if (ws.readyState === WebSocket.OPEN) {

@@ -66,7 +66,7 @@ export default function SceneRenderer({
 
       <NarrationText
         blocks={scene.interleaved_blocks}
-        text={scene.narration_ar}
+        text={scene.narration}
         uiLanguage={uiLanguage}
         onBlockStart={onNarrationBlock}
         onComplete={handleNarrationComplete}

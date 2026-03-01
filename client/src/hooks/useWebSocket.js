@@ -33,7 +33,7 @@ export default function useWebSocket() {
     // In production, the server serves the client, so use the same host.
     const isDev = import.meta.env.DEV;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = isDev ? 'localhost:3002' : window.location.host;
+    const host = isDev ? 'localhost:8080' : window.location.host;
     const url = `${protocol}//${host}`;
 
     const ws = new WebSocket(url);

@@ -16,6 +16,10 @@ import {
 import { validateEmotion, validateChoiceText, validateBase64 } from './validators.js';
 import { log, logDebug, logError } from './logger.js';
 
+// TTS & Narration
+import { ttsOpenAI } from './services/tts/openai.js';
+import { chunkArabic } from './utils/tts/chunkArabic.js';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);

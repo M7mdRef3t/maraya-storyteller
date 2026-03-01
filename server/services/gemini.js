@@ -39,9 +39,9 @@ const SCENE_SCHEMA = {
             type: 'string',
             description: 'Unique scene identifier',
           },
-          narration_ar: {
+          narration: {
             type: 'string',
-            description: 'Poetic narration in the target language, 2-3 sentences using architectural metaphors',
+            description: 'Poetic narration in the requested language (Arabic or English), 2-3 sentences based on the output_mode',
           },
           image_prompt: {
             type: 'string',

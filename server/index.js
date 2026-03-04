@@ -18,6 +18,8 @@ import { log, logDebug, logError } from './logger.js';
 
 // TTS & Narration
 import { generateNarrationAudio } from './services/tts/index.js';
+import paefService from './services/paef.js';
+
 import { chunkArabic } from './utils/tts/chunkArabic.js';
 
 dotenv.config();
@@ -79,8 +81,10 @@ function verifyClient(info, cb) {
 const wss = new WebSocketServer({
   server,
   verifyClient,
+  path: '/ws',
   maxPayload: 5 * 1024 * 1024,
 });
+
 
 app.use(express.json());
 app.get('/health', (req, res) => res.send('OK'));
@@ -159,11 +163,22 @@ function buildFallbackChoices(outputMode) {
   ];
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   log('Client connected');
+
+  // Basic extraction of sessionId/userId from query params if passed, else fallback
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const sessionId = url.searchParams.get('sessionId') || `sess_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const userId = url.searchParams.get('userId') || 'anonymous';
+
+  // Initialize PAEF Session in Firestore
+  paefService.ensureSessionDoc({ userId, sessionId }).catch(err => {
+    logError('[paef] Failed to ensure session doc on connection', err);
+  });
 
   let conversationHistory = [];
   let currentEmotion = 'hope';
+
   let currentOutputMode = 'judge_en';
   let sceneCount = 0;
   let currentSceneVersion = 0;

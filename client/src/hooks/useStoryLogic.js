@@ -64,6 +64,8 @@ export default function useStoryLogic(canvasRef) {
     return () => clearTimeout(timer);
   }, [connect]);
 
+  const [transcript, setTranscript] = useState([]);
+
   // Register WebSocket message handlers
   useEffect(() => {
     on('status', (msg) => {
@@ -152,6 +154,7 @@ export default function useStoryLogic(canvasRef) {
     on('timeline_reset', (msg) => {
       if (msg.v < lastAcceptedVersion) return;
       setSceneQueue([]);
+      setTranscript([]);
     });
 
     return () => {
@@ -178,6 +181,7 @@ export default function useStoryLogic(canvasRef) {
       setSceneQueue((prev) => prev.slice(1));
     }
   }, [sceneQueue, appState]);
+
 
   // Update audio mood when it changes
   useEffect(() => {
@@ -210,6 +214,13 @@ export default function useStoryLogic(canvasRef) {
   }, []);
 
   const handleNarrationBlock = useCallback((block) => {
+    setTranscript((prev) => {
+      // Avoid duplicate blocks if same version
+      const alreadyHas = prev.some(b => b.text_ar === block.text_ar && b.kind === block.kind);
+      if (alreadyHas) return prev;
+      return [...prev, block];
+    });
+
     if (!voiceEnabled || !voiceSupported) return;
     if (!block?.text_ar) return;
     if (block.kind === 'visual') return;
@@ -225,6 +236,7 @@ export default function useStoryLogic(canvasRef) {
     setStatusText(uiText.loadingStory);
     setCurrentScene(null);
     setSceneQueue([]);
+    setTranscript([]);
     sendMessage('start_story', { emotion: emotionId, output_mode: storyMode });
   }, [unlockAudio, preloadMoods, warmupVoice, uiText.loadingStory, sendMessage, storyMode]);
 
@@ -237,8 +249,10 @@ export default function useStoryLogic(canvasRef) {
     setStatusText(uiText.analyzingSpace);
     setCurrentScene(null);
     setSceneQueue([]);
+    setTranscript([]);
     sendMessage('start_story', { image: base64, mimeType, output_mode: storyMode });
   }, [unlockAudio, preloadMoods, warmupVoice, uiText.analyzingSpace, sendMessage, storyMode]);
+
 
   const handleChoose = useCallback((choice) => {
     const choiceText = choice?.text_ar || choice?.text_en || choice?.text || '';
@@ -307,6 +321,7 @@ export default function useStoryLogic(canvasRef) {
     setShowSpaceUpload(false);
     setCurrentScene(null);
     setSceneQueue([]);
+    setTranscript([]);
     setEndingMessage('');
     setSpaceReading(null);
     stopAudio();
@@ -315,6 +330,7 @@ export default function useStoryLogic(canvasRef) {
       canvasRef.current.clearImage();
     }
   }, [stopAudio, stopVoice, canvasRef]);
+
 
   const handleModeChange = useCallback((nextMode) => {
     const normalized = normalizeMode(nextMode);
@@ -369,7 +385,9 @@ export default function useStoryLogic(canvasRef) {
     isConnected,
     staleDroppedCount,
     lastAcceptedVersion,
+    transcript,
     handleNarrationBlock,
+
     handleSelectEmotion,
     handleUploadSpace,
     handleChoose,

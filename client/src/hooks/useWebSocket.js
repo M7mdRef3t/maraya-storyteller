@@ -33,8 +33,11 @@ export default function useWebSocket() {
     // In production, the server serves the client, so use the same host.
     const isDev = import.meta.env.DEV;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = isDev ? 'localhost:8080' : window.location.host;
-    const url = `${protocol}//${host}`;
+    // Use the same host as the page (5180 in dev) and let Vite's proxy handle /ws
+    // The server is listening on 3002, but vite.config.js proxies /ws to it.
+    const host = window.location.host;
+    const url = `${protocol}//${host}/ws`;
+
 
     const ws = new WebSocket(url);
     wsRef.current = ws;

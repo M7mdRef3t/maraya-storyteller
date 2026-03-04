@@ -4,6 +4,7 @@ import EmotionPicker from './components/EmotionPicker.jsx';
 import SpaceUpload from './components/SpaceUpload.jsx';
 import SceneRenderer from './components/SceneRenderer.jsx';
 import LoadingMirror from './components/LoadingMirror.jsx';
+import Transcript from './components/Transcript.jsx';
 import useStoryLogic from './hooks/useStoryLogic.js';
 import { APP_STATES } from './utils/constants.js';
 
@@ -18,6 +19,7 @@ export default function App() {
     currentScene,
     currentMood,
     endingMessage,
+    transcript,
     storyMode,
     musicEnabled,
     voiceEnabled,
@@ -73,19 +75,29 @@ export default function App() {
           <LoadingMirror statusText={statusText} />
         )}
 
-        {appState === APP_STATES.STORY && currentScene && (
-          <SceneRenderer
-            scene={currentScene}
-            uiLanguage={uiLanguage}
-            sceneWord={uiText.sceneWord}
-            onNarrationBlock={handleNarrationBlock}
-            onChoose={handleChoose}
-            onRedirect={handleRedirect}
-            isFinal={currentScene.is_final}
-            staleDroppedCount={staleDroppedCount}
-            version={lastAcceptedVersion}
-          />
+        {appState === APP_STATES.STORY && (
+          <>
+            <Transcript
+              blocks={transcript}
+              uiLanguage={uiLanguage}
+              visible={true}
+            />
+            {currentScene && (
+              <SceneRenderer
+                scene={currentScene}
+                uiLanguage={uiLanguage}
+                sceneWord={uiText.sceneWord}
+                onNarrationBlock={handleNarrationBlock}
+                onChoose={handleChoose}
+                onRedirect={handleRedirect}
+                isFinal={currentScene.is_final}
+                staleDroppedCount={staleDroppedCount}
+                version={lastAcceptedVersion}
+              />
+            )}
+          </>
         )}
+
 
         {appState === APP_STATES.ENDING && (
           <div className="ending">

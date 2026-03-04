@@ -13,3 +13,20 @@ dist/
 .claude/
 .playwright-cli/
 .runlogs/
+
+# Local debugging artifacts
+progress.md
+branch*.txt
+debug*.txt
+debug*.bat
+git_debug*.txt
+git_debug*.bat
+last_commit.txt
+log.txt
+ls_files.txt
+remote_debug.txt
+status.txt
+tree.txt
+user.txt
+server/server_out*.txt
+server/test_result*.txt

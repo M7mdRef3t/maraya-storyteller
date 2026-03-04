@@ -42,6 +42,13 @@ Optional:
 - `GEMINI_IMAGE_MODEL` (fallback default `gemini-2.5-flash-image`)
 - `PORT` (defaults to `3002` in local development and `8080` in production/Cloud Run)
 - `LOG_LEVEL` (`info` or `debug`)
+- `ENABLE_PAEF` (`true` by default; set `false` to disable Firestore-backed PAEF explicitly)
+
+Local PAEF note:
+
+- In local development, `PAEF` auto-disables if neither `GOOGLE_APPLICATION_CREDENTIALS` nor `FIRESTORE_EMULATOR_HOST` is set.
+- This keeps the WebSocket story flow and local tests working even without Firestore credentials.
+- To enable local Firestore-backed PAEF, run `gcloud auth application-default login` or configure `FIRESTORE_EMULATOR_HOST`.
 
 ### 3. Install dependencies
 

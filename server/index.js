@@ -435,9 +435,14 @@ wss.on('connection', (ws, req) => {
     }
   };
 
-  const handleRedirect = async (payload) => {
+  const executeRedirect = async (payload, isVersionGated = false) => {
     try {
-      const { sceneId, atIndex, command, intensity } = payload;
+      const { sceneId, atIndex, command, intensity, v } = payload;
+
+      if (isVersionGated && v < currentSceneVersion) {
+        log(`[paef] Ignored stale redirect_execute (payload.v: ${v} < current: ${currentSceneVersion})`);
+        return;
+      }
 
       currentSceneVersion += 1;
       // 1. Abort current background generation (images + TTS)
@@ -509,7 +514,42 @@ wss.on('connection', (ws, req) => {
           handleChoice(message);
           break;
         case 'redirect':
-          handleRedirect(message);
+          // Backward compatibility: execute immediately
+          executeRedirect(message, false);
+          break;
+        case 'redirect_intent':
+          // 1. Immediately send Ack for Proof and UI responsiveness
+          sendMessage('redirect_ack', {
+            sceneId: message.sceneId,
+            fromIndex: message.atIndex,
+            v: currentSceneVersion,
+            serverTs: Date.now()
+          });
+
+          // 2. Compute intervention plan (with 500ms timeout guard built-in)
+          paefService.computeInterventionPlan(
+            { userId, sessionId },
+            {
+              command: message.command,
+              context: message.context || {},
+              v: currentSceneVersion,
+              sceneId: message.sceneId,
+              atIndex: message.atIndex
+            }
+          ).then(plan => {
+            sendMessage('intervention_plan', { v: currentSceneVersion, plan });
+          }).catch(err => {
+            logError('[paef] Intervention computation failed:', err);
+            sendMessage('intervention_plan', {
+              v: currentSceneVersion,
+              plan: { delayMs: 0, style: "none", message: "", bypassWindowMs: 0 }
+            });
+          });
+          break;
+        case 'redirect_execute':
+          log(`[paef] Executing redirect (appliedDelayMs: ${message.appliedDelayMs || 0}, bypass: ${message.bypass})`);
+          // Version-gated execution
+          executeRedirect(message, true);
           break;
         default:
           logDebug('Unknown message type:', message.type);

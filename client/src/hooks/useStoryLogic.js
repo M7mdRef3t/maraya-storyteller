@@ -28,6 +28,12 @@ export default function useStoryLogic(canvasRef) {
   const redirectTimerRef = useRef(null);
   const imageFallbackTimerRef = useRef(null);
 
+  // PAEF Step B Refs
+  const intentThrottleRef = useRef(null);
+  const planFallbackTimerRef = useRef(null);
+  const interventionDelayTimerRef = useRef(null);
+  const pendingIntentRef = useRef(null);
+
   const uiLanguage = getModeUiLanguage(storyMode);
   const uiText = useMemo(() => UI_COPY[uiLanguage] || UI_COPY.en, [uiLanguage]);
 
@@ -140,6 +146,34 @@ export default function useStoryLogic(canvasRef) {
       });
     });
 
+    on('intervention_plan', (msg) => {
+      // Ignore if older version or plan corresponds to previous scene
+      if (msg.v < lastAcceptedVersion) return;
+
+      // Clear fallback timer since we got the plan!
+      if (planFallbackTimerRef.current) {
+        clearTimeout(planFallbackTimerRef.current);
+        planFallbackTimerRef.current = null;
+      }
+
+      const plan = msg.plan || { delayMs: 0, style: 'none' };
+      const intent = pendingIntentRef.current;
+
+      if (!intent) return; // Weird state
+
+      // If there's a delay, we might show UI (if style is micro_text)
+      if (plan.delayMs > 0 && plan.style === 'micro_text') {
+        setStatusText(plan.message || (uiLanguage === 'ar' ? 'خذ نفساً عميقاً..' : 'Take a breath...'));
+      }
+
+      // Schedule the actual execute
+      if (interventionDelayTimerRef.current) clearTimeout(interventionDelayTimerRef.current);
+
+      interventionDelayTimerRef.current = setTimeout(() => {
+        executePendingIntent(intent, plan.delayMs, false);
+      }, plan.delayMs);
+    });
+
     on('redirect_ack', (msg) => {
       if (msg.v < lastAcceptedVersion) return;
       setLastAcceptedVersion(msg.v);
@@ -165,6 +199,7 @@ export default function useStoryLogic(canvasRef) {
       off('story_complete');
       off('error');
       off('audio_chunk');
+      off('intervention_plan');
       off('redirect_ack');
       off('audio_cancel');
       off('timeline_reset');
@@ -274,27 +309,74 @@ export default function useStoryLogic(canvasRef) {
     });
   }, [uiText.loadingNext, sendMessage, stopVoice, storyMode, canvasRef]);
 
+  const executePendingIntent = useCallback((intent, appliedDelayMs, bypass) => {
+    setStatusText(uiLanguage === 'ar' ? 'يتم تعديل المسار...' : 'Re-planning...');
+    stopVoice();
+
+    // Clear pending state
+    pendingIntentRef.current = null;
+
+    sendMessage('redirect_execute', {
+      sceneId: intent.sceneId,
+      atIndex: intent.atIndex,
+      command: intent.command,
+      intensity: intent.intensity,
+      output_mode: intent.output_mode,
+      v: intent.v,
+      bypass,
+      appliedDelayMs
+    });
+  }, [sendMessage, stopVoice, uiLanguage]);
+
   const handleRedirect = useCallback((command, intensity = 0.8) => {
     if (!currentScene) return;
 
-    setAppState(APP_STATES.LOADING);
-    setStatusText(uiLanguage === 'ar' ? 'يتم تعديل المسار...' : 'Re-planning...');
+    setStatusText(uiLanguage === 'ar' ? 'تجهيز القرار...' : 'Preparing input...');
 
-    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-    redirectTimerRef.current = setTimeout(() => {
-      setStatusText(uiLanguage === 'ar' ? 'ضبط المزاج...' : 'Adjusting mood...');
-    }, 600);
-
-    stopVoice();
-
-    sendMessage('redirect', {
+    // 1. Save intent (overwriting any previous pending intent from spamming)
+    pendingIntentRef.current = {
       sceneId: currentScene.scene_id,
       atIndex: 0,
       command,
       intensity,
-      output_mode: storyMode
-    });
-  }, [currentScene, uiLanguage, sendMessage, stopVoice, storyMode]);
+      output_mode: storyMode,
+      v: lastAcceptedVersion
+    };
+
+    // 2. Clear any existing timers (Debouncing the intent to prevent WS spam)
+    if (intentThrottleRef.current) clearTimeout(intentThrottleRef.current);
+    if (planFallbackTimerRef.current) clearTimeout(planFallbackTimerRef.current);
+    if (interventionDelayTimerRef.current) clearTimeout(interventionDelayTimerRef.current);
+
+    intentThrottleRef.current = setTimeout(() => {
+      const intent = pendingIntentRef.current;
+      if (!intent) return;
+
+      // 3. Send Intent
+      sendMessage('redirect_intent', {
+        sceneId: intent.sceneId,
+        atIndex: intent.atIndex,
+        command: intent.command,
+        intensity: intent.intensity,
+        output_mode: intent.output_mode,
+        v: intent.v,
+        context: {
+          timeSinceLastRedirectMs: 0 // Mock for now, can be computed if needed
+        }
+      });
+
+      // 4. Start Fallback Guard (800ms)
+      planFallbackTimerRef.current = setTimeout(() => {
+        // If plan never arrives, bypass PAEF entirely to keep stream alive
+        console.warn("[paef] Fallback timer triggered (800ms). Bypassing intervention.");
+        if (pendingIntentRef.current) {
+          executePendingIntent(pendingIntentRef.current, 0, true);
+        }
+      }, 800);
+
+    }, 200); // 200ms throttle
+
+  }, [currentScene, uiLanguage, sendMessage, storyMode, lastAcceptedVersion, executePendingIntent]);
 
   useEffect(() => {
     // Spam test harness

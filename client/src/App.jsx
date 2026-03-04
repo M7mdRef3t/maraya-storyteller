@@ -5,6 +5,7 @@ import SpaceUpload from './components/SpaceUpload.jsx';
 import SceneRenderer from './components/SceneRenderer.jsx';
 import LoadingMirror from './components/LoadingMirror.jsx';
 import Transcript from './components/Transcript.jsx';
+import BrandMark from './components/BrandMark.jsx';
 import useStoryLogic from './hooks/useStoryLogic.js';
 import { APP_STATES } from './utils/constants.js';
 
@@ -46,6 +47,12 @@ export default function App() {
       <StoryCanvas ref={canvasRef} mood={currentMood} isStale={imageStale} />
 
       <div className="app__overlay">
+        {(appState === APP_STATES.STORY || appState === APP_STATES.ENDING) && (
+          <div className="story-brand">
+            <BrandMark compact />
+          </div>
+        )}
+
         {appState === APP_STATES.LANDING && !showSpaceUpload && (
           <EmotionPicker
             mode={storyMode}

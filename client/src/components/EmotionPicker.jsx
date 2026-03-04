@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { EMOTIONS, STORY_MODES } from '../utils/constants.js';
+import BrandMark from './BrandMark.jsx';
 
 /**
  * EmotionPicker - Landing screen with emotion and mode selection.
@@ -22,6 +23,7 @@ export default function EmotionPicker({
   return (
     <div className="emotion-picker">
       <div className="emotion-picker__header">
+        <BrandMark className="emotion-picker__brand" withWordmark />
         <h1 className="emotion-picker__title">{uiText.title}</h1>
         <p className="emotion-picker__subtitle">{uiText.subtitle}</p>
       </div>
@@ -94,9 +96,11 @@ export default function EmotionPicker({
       </div>
 
       <button type="button" className="emotion-picker__upload" onClick={onUploadSpace}>
-        <span className="emotion-picker__upload-icon">📷</span>
+        <span className="emotion-picker__upload-icon">??</span>
         <span>{uiText.uploadSpace}</span>
       </button>
     </div>
   );
 }
+
+

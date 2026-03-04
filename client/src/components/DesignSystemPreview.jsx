@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandMark from './BrandMark.jsx';
 
 const colors = [
   ['Primary BG', 'var(--color-bg-primary)'],
@@ -24,6 +25,7 @@ export default function DesignSystemPreview() {
   return (
     <main className="ds-preview" dir="ltr">
       <section className="ds-preview__hero glass-card">
+        <BrandMark className="ds-preview__brand" withWordmark />
         <p className="ds-preview__eyebrow">Maraya Design System</p>
         <h1 className="ds-preview__title">Living tokens, glass surfaces, cinematic UI.</h1>
         <p className="ds-preview__lede">
@@ -126,3 +128,5 @@ export default function DesignSystemPreview() {
     </main>
   );
 }
+
+

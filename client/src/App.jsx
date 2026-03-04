@@ -6,6 +6,9 @@ import SceneRenderer from './components/SceneRenderer.jsx';
 import LoadingMirror from './components/LoadingMirror.jsx';
 import Transcript from './components/Transcript.jsx';
 import BrandMark from './components/BrandMark.jsx';
+import SplashScreen from './components/SplashScreen.jsx';
+import OnboardingCarousel from './components/OnboardingCarousel.jsx';
+import SettingsSheet from './components/SettingsSheet.jsx';
 import useStoryLogic from './hooks/useStoryLogic.js';
 import { APP_STATES } from './utils/constants.js';
 
@@ -24,6 +27,8 @@ export default function App() {
     storyMode,
     musicEnabled,
     voiceEnabled,
+    settingsOpen,
+    narrationSpeed,
     voiceSupported,
     uiLanguage,
     uiText,
@@ -37,9 +42,17 @@ export default function App() {
     handleModeChange,
     handleToggleVoice,
     handleToggleMusic,
+    setNarrationSpeed,
+    handleOpenSettings,
+    handleCloseSettings,
+    handleResetSettings,
     imageStale,
     staleDroppedCount,
     lastAcceptedVersion,
+    onboardingIndex,
+    handleOnboardingNext,
+    handleOnboardingBack,
+    handleOnboardingSkip,
   } = useStoryLogic(canvasRef);
 
   return (
@@ -47,6 +60,23 @@ export default function App() {
       <StoryCanvas ref={canvasRef} mood={currentMood} isStale={imageStale} />
 
       <div className="app__overlay">
+        {appState === 'SPLASH' && (
+          <SplashScreen
+            uiLanguage={uiLanguage}
+            title={uiText.title}
+          />
+        )}
+
+        {appState === 'ONBOARDING' && (
+          <OnboardingCarousel
+            uiLanguage={uiLanguage}
+            index={onboardingIndex}
+            onNext={handleOnboardingNext}
+            onBack={handleOnboardingBack}
+            onSkip={handleOnboardingSkip}
+          />
+        )}
+
         {(appState === APP_STATES.STORY || appState === APP_STATES.ENDING) && (
           <div className="story-brand">
             <BrandMark compact />
@@ -79,7 +109,7 @@ export default function App() {
         )}
 
         {appState === APP_STATES.LOADING && (
-          <LoadingMirror statusText={statusText} />
+          <LoadingMirror statusText={statusText} uiLanguage={uiLanguage} />
         )}
 
         {appState === APP_STATES.STORY && (
@@ -97,6 +127,7 @@ export default function App() {
                 onNarrationBlock={handleNarrationBlock}
                 onChoose={handleChoose}
                 onRedirect={handleRedirect}
+                narrationSpeed={narrationSpeed}
                 isFinal={currentScene.is_final}
                 staleDroppedCount={staleDroppedCount}
                 version={lastAcceptedVersion}
@@ -115,13 +146,20 @@ export default function App() {
           </div>
         )}
 
-        {!isConnected && appState !== APP_STATES.LANDING && (
+        {!isConnected && [APP_STATES.LOADING, APP_STATES.STORY, APP_STATES.ENDING].includes(appState) && (
           <div className="connection-lost">
             {uiText.reconnecting}
           </div>
         )}
 
         <div className="audio-hud">
+          <button
+            type="button"
+            className="audio-hud__btn"
+            onClick={handleOpenSettings}
+          >
+            {uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}
+          </button>
           <button
             type="button"
             className={`audio-hud__btn ${musicEnabled ? 'audio-hud__btn--on' : ''}`}
@@ -139,6 +177,19 @@ export default function App() {
             {uiText.voiceLabel}: {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
           </button>
         </div>
+
+        <SettingsSheet
+          open={settingsOpen}
+          uiLanguage={uiLanguage}
+          musicEnabled={musicEnabled}
+          voiceEnabled={voiceEnabled}
+          onToggleMusic={handleToggleMusic}
+          onToggleVoice={handleToggleVoice}
+          narrationSpeed={narrationSpeed}
+          onNarrationSpeedChange={setNarrationSpeed}
+          onClose={handleCloseSettings}
+          onReset={handleResetSettings}
+        />
       </div>
     </div>
   );

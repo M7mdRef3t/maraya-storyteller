@@ -156,3 +156,13 @@ Current deployed health endpoint:
 - `docs/ARCHITECTURE.md`
 - `docs/GCP_DEPLOYMENT_PROOF.md`
 - `docs/DEMO_VIDEO_SCRIPT.md`
+
+## Design Ops Handoff
+
+- `docs/design-system/10-brand-identity-book.md`
+- `docs/design-system/11-ux-design-spec.md`
+- `docs/design-system/12-figma-spec.md`
+- `docs/design-system/12-ux-implementation-checklist.md`
+- `docs/design-system/13-ux-gap-report.md`
+- `docs/design-system/14-design-qa-report.md`
+- `docs/design-system/15-implementation-priority.md`

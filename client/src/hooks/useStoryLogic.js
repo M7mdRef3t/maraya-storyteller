@@ -11,7 +11,24 @@ import {
 } from '../utils/constants.js';
 
 export default function useStoryLogic(canvasRef) {
-  const [appState, setAppState] = useState(APP_STATES.LANDING);
+  const readStoredBoolean = (key, fallback) => {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    return raw === '1';
+  };
+
+  const readStoredNumber = (key, fallback) => {
+    const raw = Number(localStorage.getItem(key));
+    return Number.isFinite(raw) ? raw : fallback;
+  };
+
+  const readStoredMode = () => {
+    const raw = localStorage.getItem('maraya_story_mode');
+    return normalizeMode(raw);
+  };
+
+  const [appState, setAppState] = useState('SPLASH');
+  const [onboardingIndex, setOnboardingIndex] = useState(0);
   const [showSpaceUpload, setShowSpaceUpload] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [currentScene, setCurrentScene] = useState(null);
@@ -19,9 +36,11 @@ export default function useStoryLogic(canvasRef) {
   const [endingMessage, setEndingMessage] = useState('');
   const [sceneQueue, setSceneQueue] = useState([]);
   const [spaceReading, setSpaceReading] = useState(null);
-  const [storyMode, setStoryMode] = useState('judge_en');
-  const [musicEnabled, setMusicEnabled] = useState(true);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [storyMode, setStoryMode] = useState(readStoredMode);
+  const [musicEnabled, setMusicEnabled] = useState(() => readStoredBoolean('maraya_music_enabled', true));
+  const [voiceEnabled, setVoiceEnabled] = useState(() => readStoredBoolean('maraya_voice_enabled', true));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [narrationSpeed, setNarrationSpeed] = useState(() => readStoredNumber('maraya_narration_speed', 45));
   const [lastAcceptedVersion, setLastAcceptedVersion] = useState(0);
   const [imageStale, setImageStale] = useState(false);
   const [staleDroppedCount, setStaleDroppedCount] = useState(0);
@@ -54,6 +73,22 @@ export default function useStoryLogic(canvasRef) {
     }
   }, [voiceSupported]);
 
+  useEffect(() => {
+    localStorage.setItem('maraya_music_enabled', musicEnabled ? '1' : '0');
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('maraya_voice_enabled', voiceEnabled ? '1' : '0');
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('maraya_narration_speed', String(narrationSpeed));
+  }, [narrationSpeed]);
+
+  useEffect(() => {
+    localStorage.setItem('maraya_story_mode', storyMode);
+  }, [storyMode]);
+
   // Document language/direction
   useEffect(() => {
     const dir = uiLanguage === 'en' ? 'ltr' : 'rtl';
@@ -69,6 +104,15 @@ export default function useStoryLogic(canvasRef) {
     }, 0);
     return () => clearTimeout(timer);
   }, [connect]);
+
+  useEffect(() => {
+    if (appState !== 'SPLASH') return undefined;
+    const hasSeenOnboarding = localStorage.getItem('maraya_onboarding_seen') === '1';
+    const timer = setTimeout(() => {
+      setAppState(hasSeenOnboarding ? APP_STATES.LANDING : 'ONBOARDING');
+    }, hasSeenOnboarding ? 1200 : 1800);
+    return () => clearTimeout(timer);
+  }, [appState]);
 
   const [transcript, setTranscript] = useState([]);
 
@@ -413,6 +457,26 @@ export default function useStoryLogic(canvasRef) {
     }
   }, [stopAudio, stopVoice, canvasRef]);
 
+  const handleOnboardingNext = useCallback(() => {
+    setOnboardingIndex((prev) => {
+      if (prev >= 2) {
+        localStorage.setItem('maraya_onboarding_seen', '1');
+        setAppState(APP_STATES.LANDING);
+        return prev;
+      }
+      return prev + 1;
+    });
+  }, []);
+
+  const handleOnboardingBack = useCallback(() => {
+    setOnboardingIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const handleOnboardingSkip = useCallback(() => {
+    localStorage.setItem('maraya_onboarding_seen', '1');
+    setAppState(APP_STATES.LANDING);
+  }, []);
+
 
   const handleModeChange = useCallback((nextMode) => {
     const normalized = normalizeMode(nextMode);
@@ -447,6 +511,27 @@ export default function useStoryLogic(canvasRef) {
     });
   }, [currentMood, preloadMoods, setMood, stopAudio, unlockAudio]);
 
+  const handleOpenSettings = useCallback(() => {
+    setSettingsOpen(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setSettingsOpen(false);
+  }, []);
+
+  const handleResetSettings = useCallback(() => {
+    localStorage.removeItem('maraya_music_enabled');
+    localStorage.removeItem('maraya_voice_enabled');
+    localStorage.removeItem('maraya_narration_speed');
+    localStorage.removeItem('maraya_story_mode');
+    localStorage.removeItem('maraya_settings_detent');
+
+    setMusicEnabled(true);
+    setVoiceEnabled(voiceSupported);
+    setNarrationSpeed(45);
+    setStoryMode('judge_en');
+  }, [voiceSupported]);
+
   return {
     appState,
     setAppState,
@@ -460,6 +545,8 @@ export default function useStoryLogic(canvasRef) {
     storyMode,
     musicEnabled,
     voiceEnabled,
+    narrationSpeed,
+    settingsOpen,
     voiceSupported,
     imageStale,
     uiLanguage,
@@ -467,8 +554,12 @@ export default function useStoryLogic(canvasRef) {
     isConnected,
     staleDroppedCount,
     lastAcceptedVersion,
+    onboardingIndex,
     transcript,
     handleNarrationBlock,
+    handleOnboardingNext,
+    handleOnboardingBack,
+    handleOnboardingSkip,
 
     handleSelectEmotion,
     handleUploadSpace,
@@ -478,5 +569,9 @@ export default function useStoryLogic(canvasRef) {
     handleModeChange,
     handleToggleVoice,
     handleToggleMusic,
+    setNarrationSpeed,
+    handleOpenSettings,
+    handleCloseSettings,
+    handleResetSettings,
   };
 }

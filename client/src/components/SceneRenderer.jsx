@@ -25,6 +25,7 @@ export default function SceneRenderer({
   isFinal,
   onNarrationBlock,
   onRedirect,
+  narrationSpeed = 45,
   uiLanguage = 'ar',
   sceneWord = 'المشهد',
   staleDroppedCount = 0,
@@ -109,7 +110,7 @@ export default function SceneRenderer({
         uiLanguage={uiLanguage}
         onBlockStart={onNarrationBlock}
         onComplete={handleNarrationComplete}
-        speed={45}
+        speed={narrationSpeed}
       />
 
       {!isFinal ? (

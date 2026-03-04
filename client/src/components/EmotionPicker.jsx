@@ -19,6 +19,7 @@ export default function EmotionPicker({
   onUploadSpace,
 }) {
   const [hoveredId, setHoveredId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   return (
     <div className="emotion-picker">
@@ -75,19 +76,24 @@ export default function EmotionPicker({
         </div>
       </div>
 
-      <div className="emotion-picker__grid">
+      <div className="emotion-picker__grid" role="radiogroup" aria-label={uiLanguage === 'en' ? 'Emotion choices' : 'اختيارات المشاعر'}>
         {EMOTIONS.map((emotion) => (
           <button
             key={emotion.id}
             type="button"
-            className={`emotion-card ${hoveredId === emotion.id ? 'emotion-card--active' : ''}`}
+            role="radio"
+            aria-checked={selectedId === emotion.id}
+            className={`emotion-card ${(hoveredId === emotion.id || selectedId === emotion.id) ? 'emotion-card--active' : ''}`}
             style={{
               '--card-color': emotion.color,
               '--card-gradient': emotion.gradient,
             }}
             onMouseEnter={() => setHoveredId(emotion.id)}
             onMouseLeave={() => setHoveredId(null)}
-            onClick={() => onSelectEmotion(emotion.id)}
+            onClick={() => {
+              setSelectedId(emotion.id);
+              onSelectEmotion(emotion.id);
+            }}
           >
             <span className="emotion-card__icon">{emotion.icon}</span>
             <span className="emotion-card__label">{uiLanguage === 'en' ? emotion.label_en : emotion.label}</span>
@@ -96,7 +102,7 @@ export default function EmotionPicker({
       </div>
 
       <button type="button" className="emotion-picker__upload" onClick={onUploadSpace}>
-        <span className="emotion-picker__upload-icon">??</span>
+        <span className="emotion-picker__upload-icon">📷</span>
         <span>{uiText.uploadSpace}</span>
       </button>
     </div>

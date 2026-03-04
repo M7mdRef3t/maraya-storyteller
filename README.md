@@ -76,6 +76,7 @@ npm run dev
 Open:
 
 - `http://localhost:5180`
+- `http://localhost:5180/?design-system=1` for the visual design system preview
 
 Health:
 

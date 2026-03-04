@@ -1,0 +1,777 @@
+{
+    "$schema": "https://design-tokens.github.io/community-group/format/",
+    "maraya": {
+        "$description": "Maraya Design System Tokens v1.0.0",
+        "color": {
+            "$description": "Color primitives and semantic tokens",
+            "primitive": {
+                "black": {
+                    "$value": "#030305",
+                    "$type": "color"
+                },
+                "void": {
+                    "$value": "#0a0a0f",
+                    "$type": "color"
+                },
+                "obsidian": {
+                    "$value": "#111118",
+                    "$type": "color"
+                },
+                "charcoal": {
+                    "$value": "#1a1a24",
+                    "$type": "color"
+                },
+                "slate": {
+                    "$value": "#2a2a3a",
+                    "$type": "color"
+                },
+                "mist": {
+                    "$value": "#8888aa",
+                    "$type": "color"
+                },
+                "cloud": {
+                    "$value": "#b8b8d0",
+                    "$type": "color"
+                },
+                "pearl": {
+                    "$value": "#e0e0f0",
+                    "$type": "color"
+                },
+                "white": {
+                    "$value": "#ffffff",
+                    "$type": "color"
+                },
+                "gold": {
+                    "$value": "#ffd700",
+                    "$type": "color"
+                },
+                "amber": {
+                    "$value": "#ffb347",
+                    "$type": "color"
+                },
+                "cyan": {
+                    "$value": "#78c8ff",
+                    "$type": "color"
+                },
+                "emerald": {
+                    "$value": "#5effb3",
+                    "$type": "color"
+                },
+                "rose": {
+                    "$value": "#ff6b8a",
+                    "$type": "color"
+                },
+                "violet": {
+                    "$value": "#a78bfa",
+                    "$type": "color"
+                },
+                "coral": {
+                    "$value": "#ff7e67",
+                    "$type": "color"
+                }
+            },
+            "semantic": {
+                "background": {
+                    "primary": {
+                        "$value": "#030305",
+                        "$type": "color",
+                        "$description": "App background"
+                    },
+                    "secondary": {
+                        "$value": "#0a0a0f",
+                        "$type": "color",
+                        "$description": "Card/panel background"
+                    },
+                    "tertiary": {
+                        "$value": "#111118",
+                        "$type": "color",
+                        "$description": "Nested containers"
+                    },
+                    "elevated": {
+                        "$value": "#1a1a24",
+                        "$type": "color",
+                        "$description": "Popovers, tooltips"
+                    }
+                },
+                "surface": {
+                    "glass": {
+                        "$value": "rgba(255, 255, 255, 0.06)",
+                        "$type": "color"
+                    },
+                    "glassHover": {
+                        "$value": "rgba(255, 255, 255, 0.10)",
+                        "$type": "color"
+                    },
+                    "glassActive": {
+                        "$value": "rgba(255, 255, 255, 0.15)",
+                        "$type": "color"
+                    },
+                    "overlay": {
+                        "$value": "rgba(0, 0, 0, 0.52)",
+                        "$type": "color"
+                    }
+                },
+                "border": {
+                    "default": {
+                        "$value": "rgba(255, 255, 255, 0.10)",
+                        "$type": "color"
+                    },
+                    "subtle": {
+                        "$value": "rgba(255, 255, 255, 0.06)",
+                        "$type": "color"
+                    },
+                    "strong": {
+                        "$value": "rgba(255, 255, 255, 0.25)",
+                        "$type": "color"
+                    },
+                    "focus": {
+                        "$value": "rgba(255, 255, 255, 0.50)",
+                        "$type": "color"
+                    }
+                },
+                "text": {
+                    "primary": {
+                        "$value": "#ffffff",
+                        "$type": "color"
+                    },
+                    "secondary": {
+                        "$value": "rgba(255, 255, 255, 0.70)",
+                        "$type": "color"
+                    },
+                    "tertiary": {
+                        "$value": "rgba(255, 255, 255, 0.50)",
+                        "$type": "color"
+                    },
+                    "disabled": {
+                        "$value": "rgba(255, 255, 255, 0.30)",
+                        "$type": "color"
+                    },
+                    "inverse": {
+                        "$value": "#030305",
+                        "$type": "color"
+                    }
+                },
+                "accent": {
+                    "gold": {
+                        "$value": "#ffd700",
+                        "$type": "color",
+                        "$description": "Visual blocks, highlights"
+                    },
+                    "cyan": {
+                        "$value": "#78c8ff",
+                        "$type": "color",
+                        "$description": "Reflection blocks, links"
+                    },
+                    "emerald": {
+                        "$value": "#5effb3",
+                        "$type": "color",
+                        "$description": "Success, active states"
+                    },
+                    "rose": {
+                        "$value": "#ff6b8a",
+                        "$type": "color",
+                        "$description": "Error, danger"
+                    },
+                    "violet": {
+                        "$value": "#a78bfa",
+                        "$type": "color",
+                        "$description": "Creative, magical"
+                    },
+                    "coral": {
+                        "$value": "#ff7e67",
+                        "$type": "color",
+                        "$description": "Warning, warm alerts"
+                    }
+                },
+                "emotion": {
+                    "joy": {
+                        "$value": "#ffd700",
+                        "$type": "color"
+                    },
+                    "sadness": {
+                        "$value": "#4a9eff",
+                        "$type": "color"
+                    },
+                    "anger": {
+                        "$value": "#ff4444",
+                        "$type": "color"
+                    },
+                    "fear": {
+                        "$value": "#8b5cf6",
+                        "$type": "color"
+                    },
+                    "love": {
+                        "$value": "#ff6b8a",
+                        "$type": "color"
+                    },
+                    "hope": {
+                        "$value": "#5effb3",
+                        "$type": "color"
+                    }
+                }
+            },
+            "darkMode": {
+                "$description": "Default theme is dark. These tokens define the light-mode overrides.",
+                "background": {
+                    "primary": {
+                        "$value": "#f5f5f7",
+                        "$type": "color"
+                    },
+                    "secondary": {
+                        "$value": "#ffffff",
+                        "$type": "color"
+                    },
+                    "tertiary": {
+                        "$value": "#e8e8ed",
+                        "$type": "color"
+                    }
+                },
+                "text": {
+                    "primary": {
+                        "$value": "#1d1d1f",
+                        "$type": "color"
+                    },
+                    "secondary": {
+                        "$value": "rgba(0, 0, 0, 0.60)",
+                        "$type": "color"
+                    },
+                    "tertiary": {
+                        "$value": "rgba(0, 0, 0, 0.40)",
+                        "$type": "color"
+                    }
+                }
+            },
+            "contrast": {
+                "$description": "High-contrast mode for accessibility",
+                "background": {
+                    "$value": "#000000",
+                    "$type": "color"
+                },
+                "text": {
+                    "$value": "#ffffff",
+                    "$type": "color"
+                },
+                "border": {
+                    "$value": "#ffffff",
+                    "$type": "color"
+                },
+                "accent": {
+                    "$value": "#ffdd00",
+                    "$type": "color"
+                },
+                "focus": {
+                    "$value": "#00ff88",
+                    "$type": "color"
+                }
+            }
+        },
+        "typography": {
+            "$description": "9-level typographic scale",
+            "fontFamily": {
+                "display": {
+                    "$value": "'Cairo', sans-serif",
+                    "$type": "fontFamily"
+                },
+                "ui": {
+                    "$value": "'Outfit', 'Noto Sans Arabic', sans-serif",
+                    "$type": "fontFamily"
+                },
+                "arabicBody": {
+                    "$value": "'Cairo', sans-serif",
+                    "$type": "fontFamily"
+                },
+                "mono": {
+                    "$value": "'JetBrains Mono', 'Fira Code', monospace",
+                    "$type": "fontFamily"
+                }
+            },
+            "scale": {
+                "hero": {
+                    "fontSize": {
+                        "$value": "clamp(3rem, 8vw, 6rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.1",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "700",
+                        "$type": "number"
+                    },
+                    "letterSpacing": {
+                        "$value": "0.02em",
+                        "$type": "dimension"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.display}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "display": {
+                    "fontSize": {
+                        "$value": "clamp(2rem, 5vw, 3.5rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.2",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "700",
+                        "$type": "number"
+                    },
+                    "letterSpacing": {
+                        "$value": "0.01em",
+                        "$type": "dimension"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.display}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "title1": {
+                    "fontSize": {
+                        "$value": "clamp(1.5rem, 3.5vw, 2.5rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.3",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "700",
+                        "$type": "number"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.display}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "title2": {
+                    "fontSize": {
+                        "$value": "clamp(1.2rem, 2.8vw, 1.75rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.35",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "600",
+                        "$type": "number"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.display}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "title3": {
+                    "fontSize": {
+                        "$value": "clamp(1rem, 2.2vw, 1.3rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.4",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "600",
+                        "$type": "number"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.display}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "body": {
+                    "fontSize": {
+                        "$value": "clamp(0.95rem, 1.8vw, 1.1rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.65",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "400",
+                        "$type": "number"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.ui}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "callout": {
+                    "fontSize": {
+                        "$value": "clamp(0.875rem, 1.5vw, 1rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.5",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "500",
+                        "$type": "number"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.ui}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "caption": {
+                    "fontSize": {
+                        "$value": "clamp(0.75rem, 1.2vw, 0.85rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.4",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "500",
+                        "$type": "number"
+                    },
+                    "letterSpacing": {
+                        "$value": "0.02em",
+                        "$type": "dimension"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.ui}",
+                        "$type": "fontFamily"
+                    }
+                },
+                "overline": {
+                    "fontSize": {
+                        "$value": "clamp(0.65rem, 1vw, 0.75rem)",
+                        "$type": "dimension"
+                    },
+                    "lineHeight": {
+                        "$value": "1.3",
+                        "$type": "number"
+                    },
+                    "fontWeight": {
+                        "$value": "700",
+                        "$type": "number"
+                    },
+                    "letterSpacing": {
+                        "$value": "0.08em",
+                        "$type": "dimension"
+                    },
+                    "textTransform": {
+                        "$value": "uppercase",
+                        "$type": "string"
+                    },
+                    "fontFamily": {
+                        "$value": "{maraya.typography.fontFamily.ui}",
+                        "$type": "fontFamily"
+                    }
+                }
+            }
+        },
+        "spacing": {
+            "$description": "8px base spacing scale",
+            "0": {
+                "$value": "0px",
+                "$type": "dimension"
+            },
+            "1": {
+                "$value": "4px",
+                "$type": "dimension",
+                "$description": "Half-step for micro adjustments"
+            },
+            "2": {
+                "$value": "8px",
+                "$type": "dimension"
+            },
+            "3": {
+                "$value": "12px",
+                "$type": "dimension"
+            },
+            "4": {
+                "$value": "16px",
+                "$type": "dimension"
+            },
+            "5": {
+                "$value": "20px",
+                "$type": "dimension"
+            },
+            "6": {
+                "$value": "24px",
+                "$type": "dimension"
+            },
+            "8": {
+                "$value": "32px",
+                "$type": "dimension"
+            },
+            "10": {
+                "$value": "40px",
+                "$type": "dimension"
+            },
+            "12": {
+                "$value": "48px",
+                "$type": "dimension"
+            },
+            "16": {
+                "$value": "64px",
+                "$type": "dimension"
+            },
+            "20": {
+                "$value": "80px",
+                "$type": "dimension"
+            },
+            "24": {
+                "$value": "96px",
+                "$type": "dimension"
+            },
+            "32": {
+                "$value": "128px",
+                "$type": "dimension"
+            }
+        },
+        "grid": {
+            "$description": "12-column responsive grid system",
+            "columns": {
+                "$value": "12",
+                "$type": "number"
+            },
+            "gutter": {
+                "$value": "24px",
+                "$type": "dimension"
+            },
+            "margin": {
+                "mobile": {
+                    "$value": "16px",
+                    "$type": "dimension"
+                },
+                "tablet": {
+                    "$value": "32px",
+                    "$type": "dimension"
+                },
+                "desktop": {
+                    "$value": "64px",
+                    "$type": "dimension"
+                },
+                "wide": {
+                    "$value": "80px",
+                    "$type": "dimension"
+                }
+            },
+            "maxWidth": {
+                "$value": "1440px",
+                "$type": "dimension"
+            }
+        },
+        "breakpoint": {
+            "xs": {
+                "$value": "0px",
+                "$type": "dimension"
+            },
+            "sm": {
+                "$value": "480px",
+                "$type": "dimension"
+            },
+            "md": {
+                "$value": "768px",
+                "$type": "dimension"
+            },
+            "lg": {
+                "$value": "1024px",
+                "$type": "dimension"
+            },
+            "xl": {
+                "$value": "1280px",
+                "$type": "dimension"
+            },
+            "xxl": {
+                "$value": "1536px",
+                "$type": "dimension"
+            }
+        },
+        "radius": {
+            "none": {
+                "$value": "0px",
+                "$type": "dimension"
+            },
+            "xs": {
+                "$value": "4px",
+                "$type": "dimension"
+            },
+            "sm": {
+                "$value": "8px",
+                "$type": "dimension"
+            },
+            "md": {
+                "$value": "12px",
+                "$type": "dimension"
+            },
+            "lg": {
+                "$value": "16px",
+                "$type": "dimension"
+            },
+            "xl": {
+                "$value": "20px",
+                "$type": "dimension"
+            },
+            "2xl": {
+                "$value": "24px",
+                "$type": "dimension"
+            },
+            "full": {
+                "$value": "999px",
+                "$type": "dimension"
+            }
+        },
+        "shadow": {
+            "sm": {
+                "$value": "0 2px 8px rgba(0, 0, 0, 0.3)",
+                "$type": "shadow"
+            },
+            "md": {
+                "$value": "0 4px 15px rgba(0, 0, 0, 0.2)",
+                "$type": "shadow"
+            },
+            "lg": {
+                "$value": "0 8px 25px rgba(0, 0, 0, 0.3)",
+                "$type": "shadow"
+            },
+            "xl": {
+                "$value": "0 12px 40px rgba(0, 0, 0, 0.4)",
+                "$type": "shadow"
+            },
+            "glow": {
+                "$value": "0 0 30px rgba(255, 255, 255, 0.1)",
+                "$type": "shadow"
+            },
+            "glowAccent": {
+                "$value": "0 0 30px color-mix(in srgb, var(--accent) 45%, transparent)",
+                "$type": "shadow"
+            }
+        },
+        "blur": {
+            "sm": {
+                "$value": "8px",
+                "$type": "dimension"
+            },
+            "md": {
+                "$value": "12px",
+                "$type": "dimension"
+            },
+            "lg": {
+                "$value": "20px",
+                "$type": "dimension"
+            },
+            "xl": {
+                "$value": "25px",
+                "$type": "dimension"
+            }
+        },
+        "motion": {
+            "duration": {
+                "instant": {
+                    "$value": "100ms",
+                    "$type": "duration"
+                },
+                "fast": {
+                    "$value": "200ms",
+                    "$type": "duration"
+                },
+                "normal": {
+                    "$value": "300ms",
+                    "$type": "duration"
+                },
+                "slow": {
+                    "$value": "500ms",
+                    "$type": "duration"
+                },
+                "slower": {
+                    "$value": "800ms",
+                    "$type": "duration"
+                },
+                "cinematic": {
+                    "$value": "1200ms",
+                    "$type": "duration"
+                }
+            },
+            "easing": {
+                "spring": {
+                    "$value": "cubic-bezier(0.22, 1, 0.36, 1)",
+                    "$type": "cubicBezier"
+                },
+                "smooth": {
+                    "$value": "cubic-bezier(0.4, 0, 0.2, 1)",
+                    "$type": "cubicBezier"
+                },
+                "bounce": {
+                    "$value": "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    "$type": "cubicBezier"
+                },
+                "dramatic": {
+                    "$value": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                    "$type": "cubicBezier"
+                }
+            }
+        },
+        "opacity": {
+            "disabled": {
+                "$value": "0.45",
+                "$type": "number"
+            },
+            "muted": {
+                "$value": "0.5",
+                "$type": "number"
+            },
+            "subtle": {
+                "$value": "0.7",
+                "$type": "number"
+            },
+            "visible": {
+                "$value": "0.9",
+                "$type": "number"
+            },
+            "full": {
+                "$value": "1",
+                "$type": "number"
+            }
+        },
+        "zIndex": {
+            "base": {
+                "$value": "0",
+                "$type": "number"
+            },
+            "content": {
+                "$value": "10",
+                "$type": "number"
+            },
+            "transcript": {
+                "$value": "20",
+                "$type": "number"
+            },
+            "narration": {
+                "$value": "30",
+                "$type": "number"
+            },
+            "bar": {
+                "$value": "100",
+                "$type": "number"
+            },
+            "hud": {
+                "$value": "110",
+                "$type": "number"
+            },
+            "modal": {
+                "$value": "150",
+                "$type": "number"
+            },
+            "tooltip": {
+                "$value": "200",
+                "$type": "number"
+            },
+            "max": {
+                "$value": "9999",
+                "$type": "number"
+            }
+        }
+    }
+}

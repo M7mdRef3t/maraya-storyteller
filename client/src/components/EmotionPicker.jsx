@@ -34,6 +34,7 @@ export default function EmotionPicker({
           id="story-mode-select"
           className="emotion-picker__mode-select"
           value={mode}
+          aria-label={uiText.modeLabel}
           onChange={(e) => onModeChange(e.target.value)}
         >
           {STORY_MODES.map((item) => (
@@ -76,6 +77,7 @@ export default function EmotionPicker({
         {EMOTIONS.map((emotion) => (
           <button
             key={emotion.id}
+            type="button"
             className={`emotion-card ${hoveredId === emotion.id ? 'emotion-card--active' : ''}`}
             style={{
               '--card-color': emotion.color,
@@ -91,7 +93,7 @@ export default function EmotionPicker({
         ))}
       </div>
 
-      <button className="emotion-picker__upload" onClick={onUploadSpace}>
+      <button type="button" className="emotion-picker__upload" onClick={onUploadSpace}>
         <span className="emotion-picker__upload-icon">📷</span>
         <span>{uiText.uploadSpace}</span>
       </button>

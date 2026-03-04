@@ -92,6 +92,7 @@ export default function SceneRenderer({
           {REDIRECT_COMMANDS.map(cmd => (
             <button
               key={cmd.id}
+              type="button"
               className="live-redirect-btn"
               onClick={() => onRedirect(cmd.label.en, cmd.intensity)}
               title={cmd.label[uiLanguage]}

@@ -65,7 +65,7 @@ export default function SpaceUpload({ onUpload, onBack, uiText, disabled = false
 
   return (
     <div className="space-upload">
-      <button className="space-upload__back" onClick={onBack}>
+      <button type="button" className="space-upload__back" onClick={onBack}>
         {'<-'} {uiText.back}
       </button>
 

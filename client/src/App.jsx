@@ -42,7 +42,7 @@ export default function App() {
   } = useStoryLogic(canvasRef);
 
   return (
-    <div className="app" dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
+    <div className="app app--maraya" dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
       <StoryCanvas ref={canvasRef} mood={currentMood} isStale={imageStale} />
 
       <div className="app__overlay">
@@ -102,7 +102,7 @@ export default function App() {
         {appState === APP_STATES.ENDING && (
           <div className="ending">
             <p className="ending__message">{endingMessage}</p>
-            <button className="ending__restart" onClick={handleRestart}>
+            <button type="button" className="ending__restart" onClick={handleRestart}>
               {uiText.restart}
             </button>
           </div>

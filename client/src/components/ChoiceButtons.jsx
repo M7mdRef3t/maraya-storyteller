@@ -14,6 +14,7 @@ export default function ChoiceButtons({ choices, uiLanguage = 'ar', onChoose, vi
       {choices.map((choice, index) => (
         <button
           key={index}
+          type="button"
           className="choice-button"
           onClick={() => onChoose(choice)}
         >

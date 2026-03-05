@@ -1,0 +1,97 @@
+﻿name: Client Quality
+
+on:
+  push:
+    paths:
+      - 'client/**'
+      - 'server/**'
+      - '.github/workflows/client-quality.yml'
+  pull_request:
+    paths:
+      - 'client/**'
+      - 'server/**'
+      - '.github/workflows/client-quality.yml'
+
+jobs:
+  test_build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+      - name: Run tests
+        working-directory: client
+        run: npm run test:ci
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+  a11y:
+    runs-on: ubuntu-latest
+    needs: test_build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+      - name: Install Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        working-directory: client
+        run: npm run dev -- --host 127.0.0.1 --port 5180 > /tmp/maraya-client.log 2>&1 &
+      - name: Wait for frontend
+        run: |
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5180 >/dev/null && exit 0
+            sleep 2
+          done
+          echo "Frontend did not start in time"
+          cat /tmp/maraya-client.log || true
+          exit 1
+      - name: Run accessibility audit
+        working-directory: client
+        run: npm run a11y
+
+  e2e_smoke:
+    runs-on: ubuntu-latest
+    needs: test_build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install client deps
+        working-directory: client
+        run: npm ci
+      - name: Install Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        working-directory: client
+        run: npm run dev -- --host 127.0.0.1 --port 5180 > /tmp/maraya-client.log 2>&1 &
+      - name: Wait for services
+        run: |
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5180 >/dev/null && exit 0
+            sleep 2
+          done
+          echo "Frontend did not start in time"
+          cat /tmp/maraya-client.log || true
+          exit 1
+      - name: Run E2E smoke
+        working-directory: client
+        run: npm run e2e:smoke

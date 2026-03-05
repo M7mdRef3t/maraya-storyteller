@@ -97,6 +97,17 @@ export default function useStoryLogic(canvasRef) {
     document.body.dir = dir;
   }, [uiLanguage]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (appState !== APP_STATES.STORY) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [appState]);
+
   // Connect WebSocket on mount
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -297,7 +308,8 @@ export default function useStoryLogic(canvasRef) {
       // Avoid duplicate blocks if same version
       const alreadyHas = prev.some(b => b.text_ar === block.text_ar && b.kind === block.kind);
       if (alreadyHas) return prev;
-      return [...prev, block];
+      const next = [...prev, block];
+      return next.slice(-30);
     });
 
     if (!voiceEnabled || !voiceSupported) return;

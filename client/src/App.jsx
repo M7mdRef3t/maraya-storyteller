@@ -1,19 +1,21 @@
-import React, { useRef } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import StoryCanvas from './components/StoryCanvas.jsx';
-import EmotionPicker from './components/EmotionPicker.jsx';
+import EmotionPicker from './components/emotion/EmotionPicker.jsx';
 import SpaceUpload from './components/SpaceUpload.jsx';
-import SceneRenderer from './components/SceneRenderer.jsx';
-import LoadingMirror from './components/LoadingMirror.jsx';
+import SceneRenderer from './components/story/SceneRenderer.jsx';
+import LoadingMirror from './components/layout/LoadingMirror.jsx';
 import Transcript from './components/Transcript.jsx';
 import BrandMark from './components/BrandMark.jsx';
 import SplashScreen from './components/SplashScreen.jsx';
 import OnboardingCarousel from './components/OnboardingCarousel.jsx';
-import SettingsSheet from './components/SettingsSheet.jsx';
+import SettingsSheet from './components/layout/SettingsSheet.jsx';
+import { ToastContainer } from './components/ui/Toast.jsx';
 import useStoryLogic from './hooks/useStoryLogic.js';
 import { APP_STATES } from './utils/constants.js';
 
 export default function App() {
   const canvasRef = useRef(null);
+  const [imageAnnouncement, setImageAnnouncement] = useState('');
 
   const {
     appState,
@@ -55,9 +57,24 @@ export default function App() {
     handleOnboardingSkip,
   } = useStoryLogic(canvasRef);
 
+  useEffect(() => {
+    if (!currentScene) return;
+    const alt = currentScene.visual_desc || currentScene.visual_prompt || currentScene.narration_ar || '';
+    const prefix = uiLanguage === 'en' ? 'New scene generated: ' : 'تم توليد مشهد جديد: ';
+    if (alt.trim()) {
+      setImageAnnouncement(`${prefix}${alt}`);
+    }
+  }, [currentScene, uiLanguage]);
+
   return (
     <div className="app app--maraya" dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
-      <StoryCanvas ref={canvasRef} mood={currentMood} isStale={imageStale} />
+      <StoryCanvas
+        ref={canvasRef}
+        mood={currentMood}
+        isStale={imageStale}
+        uiLanguage={uiLanguage}
+        sceneAltText={currentScene?.visual_desc || currentScene?.visual_prompt || currentScene?.narration_ar || ''}
+      />
 
       <div className="app__overlay">
         {appState === 'SPLASH' && (
@@ -136,7 +153,6 @@ export default function App() {
           </>
         )}
 
-
         {appState === APP_STATES.ENDING && (
           <div className="ending">
             <p className="ending__message">{endingMessage}</p>
@@ -146,17 +162,22 @@ export default function App() {
           </div>
         )}
 
-        {!isConnected && [APP_STATES.LOADING, APP_STATES.STORY, APP_STATES.ENDING].includes(appState) && (
-          <div className="connection-lost">
-            {uiText.reconnecting}
-          </div>
-        )}
+        <ToastContainer
+          toasts={!isConnected ? [{
+            id: 'connection-lost',
+            type: 'warning',
+            message: uiText.reconnecting,
+            duration: 10000,
+          }] : []}
+          onDismiss={() => {}}
+        />
 
         <div className="audio-hud">
           <button
             type="button"
             className="audio-hud__btn"
             onClick={handleOpenSettings}
+            aria-label={uiLanguage === 'en' ? 'Open settings' : 'فتح الإعدادات'}
           >
             {uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}
           </button>
@@ -164,6 +185,7 @@ export default function App() {
             type="button"
             className={`audio-hud__btn ${musicEnabled ? 'audio-hud__btn--on' : ''}`}
             onClick={handleToggleMusic}
+            aria-label={`${uiText.musicLabel}: ${musicEnabled ? uiText.musicOn : uiText.musicOff}`}
           >
             {uiText.musicLabel}: {musicEnabled ? uiText.musicOn : uiText.musicOff}
           </button>
@@ -173,9 +195,14 @@ export default function App() {
             onClick={handleToggleVoice}
             disabled={!voiceSupported}
             title={!voiceSupported ? uiText.voiceUnavailable : ''}
+            aria-label={`${uiText.voiceLabel}: ${voiceEnabled ? uiText.voiceOn : uiText.voiceOff}`}
           >
             {uiText.voiceLabel}: {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
           </button>
+        </div>
+
+        <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+          {imageAnnouncement}
         </div>
 
         <SettingsSheet

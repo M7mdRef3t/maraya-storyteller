@@ -5,7 +5,7 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react
  * Forked from DawayirCanvas.jsx - keeps particle system and animation loop,
  * replaces nodes with full-screen image rendering + mood-based particles.
  */
-const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar' }, ref) => {
+const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', sceneAltText = '' }, ref) => {
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const imageRef = useRef(null);        // Current displayed image
@@ -222,6 +222,8 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar' }, re
   return (
     <canvas
       ref={canvasRef}
+      role="img"
+      aria-label={sceneAltText || (uiLanguage === 'en' ? 'Story scene background' : 'خلفية مشهد القصة')}
       width={window.innerWidth}
       height={window.innerHeight}
       style={{

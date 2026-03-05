@@ -165,4 +165,6 @@ Current deployed health endpoint:
 - `docs/design-system/12-ux-implementation-checklist.md`
 - `docs/design-system/13-ux-gap-report.md`
 - `docs/design-system/14-design-qa-report.md`
+- `docs/design-system/14-design-trends-2026.md`
 - `docs/design-system/15-implementation-priority.md`
+- `docs/design-system/16-execution-roadmap-2026.md`

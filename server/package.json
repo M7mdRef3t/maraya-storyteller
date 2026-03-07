@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "c8 node --test"
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.3.0",
@@ -14,5 +15,8 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "c8": "^11.0.0"
   }
 }

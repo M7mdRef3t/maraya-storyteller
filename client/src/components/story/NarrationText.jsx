@@ -78,7 +78,7 @@ export default function NarrationText({
         completionFiredRef.current = true;
         onComplete?.();
       }
-      return () => {};
+      return () => { };
     }
 
     const finishAll = () => {
@@ -148,49 +148,49 @@ export default function NarrationText({
     }
   };
 
-  const completedBlocks = isComplete
-    ? normalizedBlocks
-    : normalizedBlocks.slice(0, activeBlockIndex);
-  const visibleCompletedBlocks = completedBlocks.slice(-3);
-
-  const activeBlock = !isComplete ? normalizedBlocks[activeBlockIndex] : null;
+  // C4: Limit to showing only the active block or the single most recent completed one
+  // to ensure a focused, sequential reading experience as per design critique.
+  const activeBlock = normalizedBlocks[activeBlockIndex];
+  const completedBlocks = normalizedBlocks.slice(0, activeBlockIndex);
+  const displayBlock = activeBlock || (completedBlocks.length > 0 ? completedBlocks[completedBlocks.length - 1] : null);
 
   return (
     <div className="narration-text" onClick={handleClick} aria-live="polite" aria-atomic="false">
-      <div className="narration-text__stack" style={{ transition: 'all 0.5s ease-out' }}>
-        {visibleCompletedBlocks.map((block, idx) => (
+      <div className="narration-text__stack" style={{ transition: 'all 0.5s var(--ease-spring)' }}>
+        {displayBlock && (
           <p
-            key={`${block.kind}_${idx}`}
-            className={`narration-text__block narration-text__block--${block.kind}`}
-            style={{ animation: 'fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1)' }}
+            key={activeBlock ? `active_${activeBlockIndex}` : `last_${completedBlocks.length}`}
+            className={`narration-text__block narration-text__block--${displayBlock.kind}`}
+            style={{
+              animation: 'fadeInUp 0.8s var(--ease-spring)',
+              minHeight: '120px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}
           >
-            <span className="narration-text__label">{labels[block.kind] || labels.narration}</span>
-            <span className="narration-text__content">{block.text_ar}</span>
-          </p>
-        ))}
-
-        {activeBlock && (
-          <p
-            className={`narration-text__block narration-text__block--${activeBlock.kind}`}
-            style={{ animation: 'fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1)' }}
-          >
-            <span className="narration-text__label">{labels[activeBlock.kind] || labels.narration}</span>
+            <span className="narration-text__label">{labels[displayBlock.kind] || labels.narration}</span>
             <span className="narration-text__content">
-              {activeBlock.text_ar.split(' ').map((word, wIdx) => (
-                <React.Fragment key={wIdx}>
-                  <span
-                    style={{
-                      opacity: wIdx < activeWordCount ? 1 : 0,
-                      filter: wIdx < activeWordCount ? 'blur(0px)' : 'blur(4px)',
-                      transform: wIdx < activeWordCount ? 'translateY(0)' : 'translateY(2px)',
-                      transition: 'opacity 0.6s ease, filter 0.6s ease, transform 0.6s ease',
-                      display: 'inline-block',
-                    }}
-                  >
-                    {word}
-                  </span>{' '}
-                </React.Fragment>
-              ))}
+              {activeBlock ? (
+                displayBlock.text_ar.split(' ').map((word, wIdx) => (
+                  <React.Fragment key={wIdx}>
+                    <span
+                      style={{
+                        opacity: wIdx < activeWordCount ? 1 : 0,
+                        filter: wIdx < activeWordCount ? 'blur(0px)' : 'blur(4px)',
+                        transform: wIdx < activeWordCount ? 'translateY(0) scale(1)' : 'translateY(4px) scale(0.9)',
+                        fontVariationSettings: wIdx < activeWordCount ? '"wght" var(--font-wght)' : '"wght" 200',
+                        transition: 'opacity 0.6s var(--ease-spring), filter 0.6s var(--ease-spring), transform 0.6s var(--ease-spring), font-variation-settings 0.8s var(--ease-spring)',
+                        display: 'inline-block',
+                      }}
+                    >
+                      {word}
+                    </span>{' '}
+                  </React.Fragment>
+                ))
+              ) : (
+                displayBlock.text_ar
+              )}
             </span>
           </p>
         )}

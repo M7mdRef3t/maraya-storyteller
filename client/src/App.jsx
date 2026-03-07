@@ -66,6 +66,22 @@ export default function App() {
     }
   }, [currentScene, uiLanguage]);
 
+  // C2: Warn before leaving during an active story
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (appState === APP_STATES.STORY) {
+        const message = uiLanguage === 'en'
+          ? "Your story progress will be lost. Are you sure you want to leave?"
+          : "ستفقد تقدمك في القصة. هل أنت متأكد من المغادرة؟";
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [appState, uiLanguage]);
+
   return (
     <div className="app app--maraya" dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
       <StoryCanvas
@@ -169,7 +185,7 @@ export default function App() {
             message: uiText.reconnecting,
             duration: 10000,
           }] : []}
-          onDismiss={() => {}}
+          onDismiss={() => { }}
         />
 
         <div className="audio-hud">

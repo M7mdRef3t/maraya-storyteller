@@ -9,14 +9,147 @@
 }
 
 :root {
-  --font-display: 'Cairo', sans-serif;
-  --font-ui: 'Outfit', 'Noto Sans Arabic', sans-serif;
-  --font-arabic-body: 'Cairo', sans-serif;
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  /* === Colors: Primitives === */
+  --color-black: #030305;
+  --color-void: #0a0a0f;
+  --color-obsidian: #111118;
+  --color-charcoal: #1a1a24;
+  --color-slate: #2a2a3a;
+  --color-mist: #8888aa;
+  --color-cloud: #b8b8d0;
+  --color-pearl: #e0e0f0;
+  --color-white: #ffffff;
+
+  /* === Colors: Accents === */
+  --color-gold: #ffd700;
+  --color-amber: #ffb347;
+  --color-cyan: #78c8ff;
+  --color-emerald: #5effb3;
+  --color-rose: #ff6b8a;
+  --color-violet: #a78bfa;
+  --color-coral: #ff7e67;
+
+  /* === Colors: Semantic === */
+  --bg-primary: var(--color-black);
+  --bg-secondary: var(--color-void);
+  --bg-tertiary: var(--color-obsidian);
+  --bg-elevated: var(--color-charcoal);
+
   --glass-bg: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-blur: 20px;
+
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  --border-focus: rgba(255, 255, 255, 0.50);
+
+  --text-primary: var(--color-white);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-tertiary: rgba(255, 255, 255, 0.50);
+  --text-disabled: rgba(255, 255, 255, 0.40);
+  /* C3 Fix: Increased from 0.30 to 0.40 */
+
+  /* === Typography === */
+  --font-display: 'Cairo', sans-serif;
+  --font-ui: 'Outfit', 'Noto Sans Arabic', sans-serif;
+  --font-arabic-body: 'Cairo', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --type-hero-size: clamp(3rem, 8vw, 6rem);
+  --type-display-size: clamp(2rem, 5vw, 3.5rem);
+  --type-title1-size: clamp(1.5rem, 3.5vw, 2.5rem);
+  --type-title2-size: clamp(1.2rem, 2.8vw, 1.75rem);
+  --type-title3-size: clamp(1rem, 2.2vw, 1.3rem);
+  --type-body-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  --type-callout-size: clamp(0.875rem, 1.5vw, 1rem);
+  --type-caption-size: clamp(0.75rem, 1.2vw, 0.85rem);
+  --type-overline-size: clamp(0.65rem, 1vw, 0.75rem);
+
+  /* === Radius === */
+  --radius-none: 0px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 999px;
+
+  --radius-interactive: var(--radius-md);
+  --radius-button-md: var(--radius-md);
+  --radius-button-lg: var(--radius-lg);
+
+  /* === Glassmorphism: Month 2 Upgrades === */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+  --glass-blur-deep: 40px;
+  /* The Softening */
+
+  /* Affective Glass: Defaults (will be overridden by JS) */
+  --current-emotion-color: var(--color-gold);
+  --glass-tint: transparent;
+  --glass-intensity: 0.06;
+
+  /* === Typography: Kinetic Axes === */
+  --font-wght: 400;
+  --font-slnt: 0;
+
+  /* === Motion === */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* === Shadows === */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 30px rgba(255, 255, 255, 0.1);
+}
+
+/* Emotion Tint & Typography Overlays */
+.app--emotion-joy {
+  --glass-tint: rgba(255, 215, 0, 0.04);
+  --current-emotion-color: var(--color-gold);
+  --font-wght: 500;
+}
+
+.app--emotion-sadness {
+  --glass-tint: rgba(74, 158, 255, 0.06);
+  --current-emotion-color: #4a9eff;
+  --font-wght: 300;
+}
+
+.app--emotion-anger {
+  --glass-tint: rgba(255, 68, 68, 0.05);
+  --current-emotion-color: #ff4444;
+  --font-wght: 800;
+}
+
+.app--emotion-fear {
+  --glass-tint: rgba(139, 92, 246, 0.05);
+  --current-emotion-color: #8b5cf6;
+  --font-wght: 200;
+  --font-slnt: -5;
+}
+
+.app--emotion-love {
+  --glass-tint: rgba(255, 107, 138, 0.04);
+  --current-emotion-color: var(--color-rose);
+  --font-wght: 400;
+}
+
+.app--emotion-hope {
+  --glass-tint: rgba(94, 255, 179, 0.04);
+  --current-emotion-color: var(--color-emerald);
+  --font-wght: 600;
+}
+
+.narration-text__content {
+  font-variation-settings: "wght" var(--font-wght), "slnt" var(--font-slnt);
+  transition: font-variation-settings 0.8s var(--ease-smooth);
 }
 
 html,
@@ -25,8 +158,8 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #030305;
-  color: #fff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: var(--font-ui);
 }
 
@@ -101,7 +234,7 @@ body,
 
 .emotion-picker__title {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 8vw, 6rem);
+  font-size: var(--type-hero-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.6) 100%);
@@ -112,8 +245,8 @@ body,
 
 .emotion-picker__subtitle {
   font-family: var(--font-display);
-  font-size: clamp(1rem, 3vw, 1.5rem);
-  color: rgba(255, 255, 255, 0.5);
+  font-size: var(--type-title3-size);
+  color: var(--text-tertiary);
   margin-top: 0.5rem;
 }
 
@@ -139,8 +272,8 @@ body,
 .emotion-picker__voice-toggle {
   min-width: 82px;
   padding: 0.42rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
   background: rgba(0, 0, 0, 0.45);
   color: rgba(255, 255, 255, 0.92);
   font-family: var(--font-ui);
@@ -170,8 +303,8 @@ body,
 .emotion-picker__mode-select {
   min-width: 280px;
   padding: 0.7rem 0.9rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-interactive);
+  border: 1px solid var(--border-strong);
   background: rgba(0, 0, 0, 0.45);
   color: #fff;
   font-family: var(--font-ui);
@@ -205,16 +338,26 @@ body,
   align-items: center;
   gap: 0.5rem;
   padding: 1.5rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 1rem;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-interactive);
+  background: color-mix(in srgb, var(--glass-bg), var(--glass-tint) 40%);
+  backdrop-filter: blur(var(--glass-blur-deep));
+  -webkit-backdrop-filter: blur(var(--glass-blur-deep));
   cursor: pointer;
   transition: all 0.4s var(--ease-spring);
   color: #fff;
   font-family: var(--font-ui);
   font-size: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.emotion-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+  pointer-events: none;
 }
 
 .emotion-card:hover,
@@ -241,7 +384,7 @@ body,
 
 .emotion-card__label {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: var(--type-title3-size);
 }
 
 .emotion-picker__upload {
@@ -343,7 +486,7 @@ body,
 
 .space-upload__preview img {
   width: 100%;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   opacity: 0.8;
 }
 
@@ -419,14 +562,14 @@ body,
 .scene-progress {
   align-self: center;
   padding: 0.45rem 1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 0.9rem;
+  font-size: var(--type-caption-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
@@ -506,6 +649,19 @@ body,
   line-height: 1.85;
   color: #fff;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 0, 0, 0.6);
+  animation: typography-breath 8s ease-in-out infinite;
+}
+
+@keyframes typography-breath {
+
+  0%,
+  100% {
+    font-variation-settings: "wght" var(--font-wght), "slnt" var(--font-slnt);
+  }
+
+  50% {
+    font-variation-settings: "wght" calc(var(--font-wght) + 20), "slnt" var(--font-slnt);
+  }
 }
 
 .narration-text__cursor {
@@ -540,29 +696,30 @@ body,
   justify-content: space-between;
   padding: 1.1rem 1.8rem;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.74) 0%, rgba(0, 0, 0, 0.58) 100%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1.2rem;
+    linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.4) 100%),
+    var(--glass-tint);
+  backdrop-filter: blur(var(--glass-blur-deep));
+  -webkit-backdrop-filter: blur(var(--glass-blur-deep));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-button-lg);
   color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.88);
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.4s var(--ease-bounce);
+  box-shadow: var(--shadow-md);
+  position: relative;
 }
 
 .choice-button:hover {
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.66) 100%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
-  border-color: rgba(255, 255, 255, 0.3);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.5) 100%),
+    color-mix(in srgb, var(--current-emotion-color) 15%, transparent);
+  border-color: var(--current-emotion-color);
   transform: translateX(-6px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--current-emotion-color) 20%, transparent);
 }
 
 [dir='ltr'] .choice-button:hover {
@@ -645,23 +802,11 @@ body,
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* =============================================================================
-   Connection Lost
-   ============================================================================= */
+/* === Shadows Removal (Moved to :root) === */
 
-.connection-lost {
-  position: fixed;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 1.5rem;
-  background: rgba(255, 80, 60, 0.2);
-  border: 1px solid rgba(255, 80, 60, 0.3);
-  border-radius: 2rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.85rem;
-  animation: pulse 2s infinite;
-  z-index: 100;
+.app--maraya {
+  isolation: isolate;
+  /* Performance: Prevent unnecessary layer re-composition */
 }
 
 /* =============================================================================
@@ -682,9 +827,11 @@ body,
 .audio-hud__btn {
   min-width: 170px;
   min-height: 44px;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.26);
+  /* C1 Fix: Apple HIG minimum */
+  padding: 0.6rem 0.9rem;
+  /* C1 Fix: Adjusted for 44px height */
+  border-radius: var(--radius-interactive);
+  border: 1px solid var(--border-strong);
   background: rgba(0, 0, 0, 0.52);
   color: rgba(255, 255, 255, 0.92);
   font-family: var(--font-ui);
@@ -1199,11 +1346,9 @@ body {
   padding: var(--space-5);
   border: 1px solid color-mix(in srgb, var(--emotion-color) 45%, transparent);
   border-radius: var(--radius-lg);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--emotion-color) 18%, transparent) 0%,
-    color-mix(in srgb, var(--emotion-color) 5%, transparent) 100%
-  );
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--emotion-color) 18%, transparent) 0%,
+      color-mix(in srgb, var(--emotion-color) 5%, transparent) 100%);
   color: var(--color-text-primary);
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.28),
@@ -1757,6 +1902,7 @@ body {
     transform: translateY(100%);
     opacity: 0.6;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -1805,6 +1951,7 @@ body {
 
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -1814,5 +1961,3 @@ body {
     scroll-behavior: auto !important;
   }
 }
-
-

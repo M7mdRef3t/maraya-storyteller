@@ -272,16 +272,33 @@ export default function useStoryLogic(canvasRef) {
     }
   }, [sceneQueue, appState]);
 
-
-  // Update audio mood when it changes
+  // Update audio mood and Affective Glass classes when it changes
   useEffect(() => {
+    // 1. Audio handling
     if (!musicEnabled) {
       stopAudio();
-      return;
-    }
-    if (currentMood) {
+    } else if (currentMood) {
       setMood(currentMood);
     }
+
+    // 2. Affective Glass: Update document class based on emotion
+    const moodPrefix = 'app--emotion-';
+    // Remove all previous mood classes
+    const classesToRemove = Array.from(document.body.classList).filter(c => c.startsWith(moodPrefix));
+    classesToRemove.forEach(c => document.body.classList.remove(c));
+
+    // Map mood to basic emotion for CSS class
+    const emotionMapping = {
+      'ambient_calm': 'joy',
+      'tense_mysterious': 'fear',
+      'intense_dramatic': 'anger',
+      'melancholic_soft': 'sadness',
+      'uplifting_heroic': 'hope',
+      'romantic_whimsical': 'love'
+    };
+
+    const baseEmotion = emotionMapping[currentMood] || 'joy';
+    document.body.classList.add(`${moodPrefix}${baseEmotion}`);
   }, [currentMood, musicEnabled, setMood, stopAudio]);
 
   // Stop voice on state change

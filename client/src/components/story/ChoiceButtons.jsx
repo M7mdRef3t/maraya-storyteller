@@ -10,7 +10,7 @@ export default function ChoiceButtons({ choices, uiLanguage = 'ar', onChoose, vi
   const arrow = uiLanguage === 'en' ? '→' : '←';
 
   return (
-    <div className={`choice-buttons ${visible ? 'choice-buttons--visible' : ''}`}>
+    <div className={`choice-buttons ${visible ? 'choice-buttons--visible' : ''}`} style={{ pointerEvents: visible ? 'auto' : 'none' }}>
       {choices.map((choice, index) => (
         <button
           key={index}

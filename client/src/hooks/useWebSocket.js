@@ -29,14 +29,11 @@ export default function useWebSocket() {
       reconnectTimerRef.current = null;
     }
 
-    // In dev mode (Vite), connect directly to the backend server.
-    // In production, the server serves the client, so use the same host.
-    const isDev = import.meta.env.DEV;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use the same host as the page (5180 in dev) and let Vite's proxy handle /ws
-    // The server is listening on 3002, but vite.config.js proxies /ws to it.
+    // Allow overriding the WebSocket endpoint in local/dev environments.
+    const configuredUrl = import.meta.env.VITE_WS_URL;
     const host = window.location.host;
-    const url = `${protocol}//${host}/ws`;
+    const url = configuredUrl || `${protocol}//${host}/ws`;
 
 
     const ws = new WebSocket(url);

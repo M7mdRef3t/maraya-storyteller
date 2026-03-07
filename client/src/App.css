@@ -1949,6 +1949,36 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Viewport-fit polish: avoid forcing browser zoom-out on shorter screens */
+.app__overlay {
+  overflow-y: auto;
+  align-items: flex-start;
+  padding-block: clamp(0.75rem, 2vh, 1.5rem);
+}
+
+.emotion-picker {
+  gap: clamp(1rem, 2.4vh, var(--space-12));
+  padding: clamp(1rem, 2.1vh, 2rem);
+}
+
+.emotion-picker__title {
+  font-size: clamp(2.2rem, 8vh, 5.25rem);
+}
+
+.emotion-picker__controls {
+  padding: clamp(0.75rem, 1.7vh, 1.25rem);
+}
+
+.emotion-card {
+  min-height: clamp(6.25rem, 12vh, 8.75rem);
+}
+
+@media (max-height: 800px) {
+  .emotion-picker__grid {
+    gap: var(--space-3);
+  }
+}
+
 
 @media (prefers-reduced-motion: reduce) {
 

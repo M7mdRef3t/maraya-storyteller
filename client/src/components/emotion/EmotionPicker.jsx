@@ -1,6 +1,10 @@
-﻿import React, { useRef, useState } from 'react';
-import { EMOTIONS, STORY_MODES } from '../../utils/constants.js';
+import React, { useRef, useState } from 'react';
+import { EMOTIONS, JUDGE_HERO_COPY, STORY_MODES } from '../../utils/constants.js';
 import BrandMark from '../BrandMark.jsx';
+import WhisperInputButton from './WhisperInputButton.jsx';
+import MirrorMemoryPanel from './MirrorMemoryPanel.jsx';
+import DuoModePanel from './DuoModePanel.jsx';
+import JudgeModePanel from './JudgeModePanel.jsx';
 
 /**
  * EmotionPicker - Landing screen with emotion and mode selection.
@@ -12,15 +16,29 @@ export default function EmotionPicker({
   musicEnabled,
   voiceEnabled,
   voiceSupported,
+  canStartStory = true,
+  mirrorMemory,
+  whisperInput,
+  judgeMode = false,
+  duoState,
+  duoJoinCode,
   onModeChange,
   onToggleMusic,
   onToggleVoice,
   onSelectEmotion,
   onUploadSpace,
+  onStartJudgeJourney,
+  onDuoNameChange,
+  onDuoJoinCodeChange,
+  onHostDuo,
+  onJoinDuo,
+  onLeaveDuo,
 }) {
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const optionRefs = useRef([]);
+  const startLocked = !canStartStory;
+  const judgeHero = JUDGE_HERO_COPY[uiLanguage] || JUDGE_HERO_COPY.en;
 
   const handleEmotionKeyDown = (event, index) => {
     const isHorizontalKey = event.key === 'ArrowRight' || event.key === 'ArrowLeft';
@@ -43,59 +61,119 @@ export default function EmotionPicker({
   };
 
   return (
-    <div className="emotion-picker">
+    <div className={`emotion-picker ${judgeMode ? 'emotion-picker--judge' : ''}`}>
       <div className="emotion-picker__header">
         <BrandMark className="emotion-picker__brand" withWordmark />
         <h1 className="emotion-picker__title">{uiText.title}</h1>
-        <p className="emotion-picker__subtitle">{uiText.subtitle}</p>
+        <p className="emotion-picker__subtitle">
+          {judgeMode ? judgeHero.heading : uiText.subtitle}
+        </p>
+        {judgeMode && (
+          <p className="emotion-picker__judge-subtitle">{judgeHero.subheading}</p>
+        )}
       </div>
 
-      <div className="emotion-picker__controls">
-        <label className="emotion-picker__mode-label" htmlFor="story-mode-select">
-          {uiText.modeLabel}
-        </label>
-        <select
-          id="story-mode-select"
-          className="emotion-picker__mode-select"
-          value={mode}
-          aria-label={uiText.modeLabel}
-          onChange={(e) => onModeChange(e.target.value)}
-        >
-          {STORY_MODES.map((item) => (
-            <option key={item.id} value={item.id}>
-              {uiLanguage === 'en' ? item.label_en : item.label_ar}
-            </option>
-          ))}
-        </select>
-
-        <div className="emotion-picker__voice">
-          <span className="emotion-picker__voice-label">{uiText.musicLabel}</span>
-          <button
-            type="button"
-            className={`emotion-picker__voice-toggle ${
-              musicEnabled ? 'emotion-picker__voice-toggle--on' : ''
-            }`}
-            onClick={onToggleMusic}
+      {!judgeMode && (
+        <div className="emotion-picker__controls">
+          <label className="emotion-picker__mode-label" htmlFor="story-mode-select">
+            {uiText.modeLabel}
+          </label>
+          <select
+            id="story-mode-select"
+            className="emotion-picker__mode-select"
+            value={mode}
+            aria-label={uiText.modeLabel}
+            disabled={duoState?.role === 'guest'}
+            onChange={(e) => onModeChange(e.target.value)}
           >
-            {musicEnabled ? uiText.musicOn : uiText.musicOff}
-          </button>
-        </div>
+            {STORY_MODES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {uiLanguage === 'en' ? item.label_en : item.label_ar}
+              </option>
+            ))}
+          </select>
 
-        <div className="emotion-picker__voice">
-          <span className="emotion-picker__voice-label">{uiText.voiceLabel}</span>
-          <button
-            type="button"
-            className={`emotion-picker__voice-toggle ${
-              voiceEnabled ? 'emotion-picker__voice-toggle--on' : ''
-            }`}
-            onClick={onToggleVoice}
-            disabled={!voiceSupported}
-            title={!voiceSupported ? uiText.voiceUnavailable : ''}
-          >
-            {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
-          </button>
+          <div className="emotion-picker__voice">
+            <span className="emotion-picker__voice-label">{uiText.musicLabel}</span>
+            <button
+              type="button"
+              className={`emotion-picker__voice-toggle ${
+                musicEnabled ? 'emotion-picker__voice-toggle--on' : ''
+              }`}
+              onClick={onToggleMusic}
+            >
+              {musicEnabled ? uiText.musicOn : uiText.musicOff}
+            </button>
+          </div>
+
+          <div className="emotion-picker__voice">
+            <span className="emotion-picker__voice-label">{uiText.voiceLabel}</span>
+            <button
+              type="button"
+              className={`emotion-picker__voice-toggle ${
+                voiceEnabled ? 'emotion-picker__voice-toggle--on' : ''
+              }`}
+              onClick={onToggleVoice}
+              disabled={!voiceSupported}
+              title={!voiceSupported ? uiText.voiceUnavailable : ''}
+            >
+              {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {judgeMode ? (
+        <JudgeModePanel
+          uiLanguage={uiLanguage}
+          whisperSupported={whisperInput?.isSupported}
+          disabled={startLocked}
+          mirrorMemory={mirrorMemory}
+          onStartJudgeJourney={onStartJudgeJourney}
+          onStartLiveWhisper={whisperInput?.isListening ? whisperInput?.stop : whisperInput?.start}
+        />
+      ) : (
+        <>
+          <WhisperInputButton
+            uiLanguage={uiLanguage}
+            isSupported={whisperInput?.isSupported}
+            isListening={whisperInput?.isListening}
+            transcript={whisperInput?.transcript}
+            error={whisperInput?.error}
+            disabled={startLocked}
+            onStart={whisperInput?.start}
+            onStop={whisperInput?.stop}
+          />
+
+          <DuoModePanel
+            uiLanguage={uiLanguage}
+            roomId={duoState?.roomId}
+            status={duoState?.status}
+            role={duoState?.role}
+            selfName={duoState?.selfName}
+            partnerName={duoState?.partnerName}
+            notice={duoState?.notice}
+            error={duoState?.error}
+            joinCode={duoJoinCode}
+            storyStarted={duoState?.storyStarted}
+            onNameChange={onDuoNameChange}
+            onJoinCodeChange={onDuoJoinCodeChange}
+            onHost={onHostDuo}
+            onJoin={onJoinDuo}
+            onLeave={onLeaveDuo}
+          />
+
+          <MirrorMemoryPanel snapshot={mirrorMemory} uiLanguage={uiLanguage} />
+        </>
+      )}
+
+      {judgeMode && (
+        <p className="emotion-picker__judge-alt">
+          {uiLanguage === 'en'
+            ? 'Alternative starts if the judges ask: pick an emotion card or let Maraya read a space.'
+            : 'بدايات بديلة إذا طلب المحكّمون: اختر بطاقة شعورية أو دع مرايا تقرأ المكان.'}
+        </p>
+      )}
 
       <div
         className="emotion-picker__grid"
@@ -117,6 +195,7 @@ export default function EmotionPicker({
               '--card-color': emotion.color,
               '--card-gradient': emotion.gradient,
             }}
+            disabled={startLocked}
             onMouseEnter={() => setHoveredId(emotion.id)}
             onMouseLeave={() => setHoveredId(null)}
             onKeyDown={(event) => handleEmotionKeyDown(event, index)}
@@ -131,11 +210,15 @@ export default function EmotionPicker({
         ))}
       </div>
 
-      <button type="button" className="emotion-picker__upload" onClick={onUploadSpace}>
+      <button
+        type="button"
+        className="emotion-picker__upload"
+        onClick={onUploadSpace}
+        disabled={startLocked}
+      >
         <span className="emotion-picker__upload-icon">📷</span>
         <span>{uiText.uploadSpace}</span>
       </button>
     </div>
   );
 }
-

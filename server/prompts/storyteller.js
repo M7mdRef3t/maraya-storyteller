@@ -115,8 +115,17 @@ const OUTPUT_MODE_CONFIG = {
   },
 };
 
+const DEFAULT_STORY_SCENE_LIMIT = 7;
+const JUDGE_STORY_SCENE_LIMIT = 3;
+
 export function normalizeOutputMode(mode) {
   return OUTPUT_MODE_CONFIG[mode] ? mode : 'judge_en';
+}
+
+export function getStorySceneLimit(outputMode = 'judge_en') {
+  return normalizeOutputMode(outputMode) === 'judge_en'
+    ? JUDGE_STORY_SCENE_LIMIT
+    : DEFAULT_STORY_SCENE_LIMIT;
 }
 
 function getOutputModeSection(mode) {
@@ -177,7 +186,44 @@ function getAudioMoodSection() {
 - Choose one from: ${AUDIO_MOODS.join(', ')}`;
 }
 
-function getSceneCountSection(isFollowUp) {
+/**
+ * Secret Endings — special narrative conclusions triggered by specific
+ * emotion patterns across the story journey. No app in the world does this.
+ */
+const SECRET_ENDINGS = {
+  phoenix: {
+    pattern: ['anxiety', 'loneliness', 'hope'],
+    en: 'PHOENIX ENDING: The protagonist has journeyed from darkness through solitude to hope. Create a transcendent final scene where the architectural world literally transforms — brutalist concrete cracks to reveal biophilic gardens, symbolizing rebirth. Include the phrase "The mirror remembers what you chose to forget" in the narration.',
+    ar: 'نهاية العنقاء: رحلة من الظلام عبر الوحدة إلى الأمل. اخلق مشهداً ختامياً خارقاً حيث العالم المعماري يتحول — الخرسانة تتشقق لتكشف حدائق حيوية ترمز للولادة من جديد. أدرج عبارة "المرآة تتذكر ما اخترت أن تنساه" في السرد.',
+  },
+  labyrinth: {
+    pattern: ['confusion', 'wonder', 'confusion'],
+    en: 'LABYRINTH ENDING: The protagonist is caught in a beautiful recursive loop. Create a surreal scene where the architecture folds into infinite tessellation — the ending IS the beginning. Include the phrase "You were never lost. The maze was always you."',
+    ar: 'نهاية المتاهة: البطل محاصر في حلقة جمالية لا نهائية. اخلق مشهداً سريالياً حيث العمارة تنطوي في تكرار لا نهائي — النهاية هي البداية. أدرج عبارة "لم تكن تائهاً أبداً. المتاهة كانت أنت."',
+  },
+  echo: {
+    pattern: ['nostalgia', 'loneliness', 'nostalgia'],
+    en: 'ECHO ENDING: A haunting circular return. The final scene mirrors the first scene exactly but from a different perspective — the protagonist realizes they are the ghost haunting their own memory. Include "This place was waiting for someone who already left."',
+    ar: 'نهاية الصدى: عودة دائرية مؤلمة. المشهد الأخير يعكس الأول من منظور مختلف — البطل يدرك أنه الشبح الذي يطارد ذاكرته. أدرج عبارة "هذا المكان كان ينتظر شخصاً غادر منذ زمن."',
+  },
+};
+
+export function detectSecretEnding(emotionHistory, outputMode = 'judge_en') {
+  if (!Array.isArray(emotionHistory) || emotionHistory.length < 3) return null;
+  const last3 = emotionHistory.slice(-3);
+  for (const [key, ending] of Object.entries(SECRET_ENDINGS)) {
+    if (ending.pattern.every((e, i) => last3[i] === e)) {
+      const isEnglish = outputMode === 'judge_en';
+      return { key, instruction: isEnglish ? ending.en : ending.ar };
+    }
+  }
+  return null;
+}
+
+function getSceneCountSection(isFollowUp, outputMode, allowFinalEnding) {
+  const modeKey = normalizeOutputMode(outputMode);
+  const storySceneLimit = getStorySceneLimit(modeKey);
+  const isJudgeMode = modeKey === 'judge_en';
   const sceneCountRule = isFollowUp
     ? 'Generate exactly 1 follow-up scene.'
     : 'Generate exactly 1 opening scene.';
@@ -186,9 +232,20 @@ function getSceneCountSection(isFollowUp) {
     ? 'Continue naturally from the previous scene while honoring the user choice.'
     : 'This opening scene should establish the world and emotional tone clearly.';
 
+  const judgeRailRules = isJudgeMode
+    ? [
+      `The entire judge journey must resolve within ${storySceneLimit} scenes total.`,
+      'Scene 1 must reveal the wound and the world immediately.',
+      allowFinalEnding
+        ? `This scene is the decisive final turn. Resolve the emotional arc completely and set choices to empty array [] so the story ends within ${storySceneLimit} scenes.`
+        : 'If this is not the final scene yet, push the protagonist into a visible emotional pivot that accelerates the ending.',
+    ]
+    : [`The full story can span up to ${storySceneLimit} scenes total.`];
+
   return `SCENE COUNT
 - ${sceneCountRule}
-${arcRule ? `- ${arcRule}` : ''}`;
+${arcRule ? `- ${arcRule}` : ''}
+- ${judgeRailRules.join('\n- ')}`;
 }
 
 function getRedirectSection({ command, intensity }) {
@@ -208,10 +265,15 @@ export function buildStorytellerPrompt(
   outputMode = 'judge_en',
   allowFinalEnding = false,
   redirectCommand = null,
+  secretEnding = null,
 ) {
   const style = STYLE_MAP[emotion] || STYLE_MAP.hope;
   const modeKey = normalizeOutputMode(outputMode);
   const mode = OUTPUT_MODE_CONFIG[modeKey];
+
+  const secretEndingSection = secretEnding
+    ? `\nSECRET ENDING UNLOCKED (HIGHEST PRIORITY)\n- ${secretEnding.instruction}\n- This is a rare achievement. Make the scene extraordinary and unforgettable.\n- Set choices to empty array [] since this is the true ending.`
+    : '';
 
   return `You are "Maraya", an immersive creative director and architectural storyteller.
 
@@ -232,9 +294,9 @@ ${getChoiceRulesSection(mode, allowFinalEnding)}
 
 ${getAudioMoodSection()}
 
-${getSceneCountSection(isFollowUp)}
+${getSceneCountSection(isFollowUp, modeKey, allowFinalEnding)}
 
-${redirectCommand ? getRedirectSection(redirectCommand) : ''}
+${redirectCommand ? getRedirectSection(redirectCommand) : ''}${secretEndingSection}
 
 Return JSON only.`;
 }
@@ -255,4 +317,4 @@ Return JSON only:
 {"detected_emotion":"...","space_reading":"..."}`;
 }
 
-export { STYLE_MAP, AUDIO_MOODS, OUTPUT_MODE_CONFIG };
+export { STYLE_MAP, AUDIO_MOODS, OUTPUT_MODE_CONFIG, SECRET_ENDINGS };

@@ -147,6 +147,75 @@ export const UI_COPY = {
   },
 };
 
+export const JUDGE_MODE_QUERY_PARAM = 'judge';
+
+export const JUDGE_SAMPLE_WHISPERS = {
+  en: 'I feel lost, but I want to find hope.',
+  ar: 'أشعر بالضياع، لكنني أريد أن أصل إلى الأمل.',
+};
+
+export const JUDGE_WOW_STEPS = {
+  en: [
+    'Mirror listens',
+    'Feeling becomes a world',
+    'The story bends live',
+    'You leave with proof',
+  ],
+  ar: [
+    'المرآة تسمعك',
+    'الإحساس يصير عالماً',
+    'القصة تنعطف حيّاً',
+    'تخرج بأثر ملموس',
+  ],
+};
+
+export const JUDGE_HERO_COPY = {
+  en: {
+    heading: 'The emotional mirror that turns what you carry into a live cinematic story.',
+    subheading: 'Start with a whisper. Bend the story live. Leave with something worth sharing.',
+  },
+  ar: {
+    heading: 'المرآة العاطفية التي تحوّل ما تحمله داخلك إلى قصة سينمائية حية.',
+    subheading: 'ابدأ بهمسة. غيّر القصة حيّاً. واخرج بأثر يستحق المشاركة.',
+  },
+};
+
+export const JUDGE_POSITIONING_COPY = {
+  en: 'Maraya is not a story generator. It is an emotional mirror that speaks in cinema.',
+  ar: 'مرايا ليس مولّد قصص. إنه مرآة عاطفية تتكلم بلغة السينما.',
+};
+
+export const JUDGE_TALKING_POINTS = {
+  en: [
+    {
+      title: 'Begins from emotion, not prompts',
+      body: 'The experience starts from what the user feels, not from a menu of plot ideas.',
+    },
+    {
+      title: 'Bends the scene live',
+      body: 'Judges can redirect the tone inside the unfolding scene and watch the world respond in real time.',
+    },
+    {
+      title: 'Leaves a lasting artifact',
+      body: 'The journey ends with a map, reel, or shareable scene card instead of vanishing like a chat log.',
+    },
+  ],
+  ar: [
+    {
+      title: 'يبدأ من الشعور لا من البرومبت',
+      body: 'التجربة تبدأ مما يشعر به المستخدم، لا من قائمة أفكار جاهزة للحبكة.',
+    },
+    {
+      title: 'يثني المشهد حيّاً',
+      body: 'يمكن للمحكّمين تغيير نبرة المشهد أثناء انكشافه ومشاهدة العالم وهو يستجيب فوراً.',
+    },
+    {
+      title: 'يترك أثراً يبقى',
+      body: 'الرحلة تنتهي بخريطة أو Reel أو بطاقة قابلة للمشاركة بدلاً من أن تختفي كسجل محادثة.',
+    },
+  ],
+};
+
 export const AUDIO_MOOD_MAP = {
   ambient_calm: { file: 'calm.wav', label: 'Calm' },
   tense_drone: { file: 'tension.wav', label: 'Tension' },

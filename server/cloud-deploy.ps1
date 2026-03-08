@@ -3,7 +3,11 @@ param(
   [string]$ServiceName = "maraya-storyteller",
   [string]$Region = "europe-west1",
   [string]$GeminiApiKey = "",
-  [string]$GeminiTextModel = "gemini-2.5-flash"
+  [string]$GeminiTextModel = "gemini-2.5-flash",
+  [string]$GeminiRequestTimeoutMs = "15000",
+  [string]$GeminiMaxRetries = "2",
+  [string]$PersistenceBackend = "firestore",
+  [string]$DuoReconnectGraceMs = "60000"
 )
 
 $ErrorActionPreference = "Stop"
@@ -90,7 +94,7 @@ Invoke-Gcloud -Bin $gcloud -GcloudArgs @(
   "--platform", "managed",
   "--region", $Region,
   "--allow-unauthenticated",
-  "--set-env-vars", "GEMINI_API_KEY=$GeminiApiKey,GEMINI_TEXT_MODEL=$GeminiTextModel",
+  "--set-env-vars", "GEMINI_API_KEY=$GeminiApiKey,GEMINI_TEXT_MODEL=$GeminiTextModel,GEMINI_REQUEST_TIMEOUT_MS=$GeminiRequestTimeoutMs,GEMINI_MAX_RETRIES=$GeminiMaxRetries,PERSISTENCE_BACKEND=$PersistenceBackend,DUO_RECONNECT_GRACE_MS=$DuoReconnectGraceMs",
   "--timeout", "900",
   "--session-affinity"
 )

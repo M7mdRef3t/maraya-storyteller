@@ -10,8 +10,10 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
   const particlesRef = useRef([]);
   const imageRef = useRef(null);        // Current displayed image
   const targetImageRef = useRef(null);   // Image to transition to
+  const prevImageRef = useRef(null);     // Previous image for crossfade
   const imageOpacityRef = useRef(0);     // Current image opacity (0-1)
   const targetOpacityRef = useRef(0);    // Target opacity
+  const crossfadeProgressRef = useRef(1); // 0=showing old, 1=showing new (complete)
   const moodRef = useRef(mood || 'ambient_calm');
 
   // Cache gradients to avoid re-creation on every frame
@@ -55,6 +57,11 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
     setImage: (base64, mimeType) => {
       const img = new Image();
       img.onload = () => {
+        // Save current image as previous for crossfade
+        if (imageRef.current) {
+          prevImageRef.current = imageRef.current;
+          crossfadeProgressRef.current = 0; // Start crossfade from old image
+        }
         targetImageRef.current = img;
         targetOpacityRef.current = 1;
       };
@@ -62,6 +69,7 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
     },
     clearImage: () => {
       targetOpacityRef.current = 0;
+      prevImageRef.current = null;
     },
   }));
 
@@ -114,12 +122,32 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
         ctx.fillRect(0, 0, w, h);
       }
 
-      // 2. Scene image with smooth opacity transition
+      // Helper: draw an image in "cover" mode
+      const drawCover = (img, alpha, blurPx) => {
+        ctx.globalAlpha = alpha;
+        if (blurPx > 0.1) {
+          ctx.filter = `blur(${blurPx}px)`;
+        } else {
+          ctx.filter = 'none';
+        }
+        const imgRatio = img.width / img.height;
+        const canvasRatio = w / h;
+        let dw, dh, dx, dy;
+        if (imgRatio > canvasRatio) {
+          dh = h; dw = h * imgRatio; dx = (w - dw) / 2; dy = 0;
+        } else {
+          dw = w; dh = w / imgRatio; dx = 0; dy = (h - dh) / 2;
+        }
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.filter = 'none';
+        ctx.globalAlpha = 1;
+      };
+
+      // 2. Scene image with cinematic crossfade transition
       if (targetImageRef.current && targetOpacityRef.current > 0) {
         imageOpacityRef.current = lerp(imageOpacityRef.current, targetOpacityRef.current, 0.03);
 
         if (imageOpacityRef.current > 0.01) {
-          // When transitioning to new image, swap when ready
           if (targetImageRef.current !== imageRef.current && imageOpacityRef.current > 0.5) {
             imageRef.current = targetImageRef.current;
           }
@@ -128,54 +156,55 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
         imageOpacityRef.current = lerp(imageOpacityRef.current, 0, 0.03);
       }
 
-      if (imageRef.current && imageOpacityRef.current > 0.01) {
-        ctx.globalAlpha = Math.min(imageOpacityRef.current, 0.85);
+      // Advance crossfade
+      if (crossfadeProgressRef.current < 1) {
+        crossfadeProgressRef.current = Math.min(1, crossfadeProgressRef.current + 0.015);
+      }
 
-        // Add smart cinematic blur during image loading/transition
-        const blurFactor = (0.85 - ctx.globalAlpha) * 15; // Max 12px blur
-        if (blurFactor > 0.1) {
-          ctx.filter = `blur(${blurFactor}px)`;
-        } else {
-          ctx.filter = 'none';
+      const cfProgress = crossfadeProgressRef.current;
+      const baseAlpha = Math.min(imageOpacityRef.current, 0.85);
+
+      // Draw previous image (fading out) during crossfade
+      if (prevImageRef.current && cfProgress < 1 && baseAlpha > 0.01) {
+        const prevAlpha = baseAlpha * (1 - cfProgress);
+        // Slight zoom-out on the old image for cinematic feel
+        const prevScale = 1 + (cfProgress * 0.03);
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(prevScale, prevScale);
+        ctx.translate(-w / 2, -h / 2);
+        drawCover(prevImageRef.current, prevAlpha, cfProgress * 4);
+        ctx.restore();
+      }
+
+      // Draw current image (fading in)
+      if (imageRef.current && baseAlpha > 0.01) {
+        const curAlpha = cfProgress < 1 ? baseAlpha * cfProgress : baseAlpha;
+        const blurFactor = cfProgress < 1 ? (1 - cfProgress) * 8 : (0.85 - baseAlpha) * 15;
+        // Slight zoom-in on new image
+        const newScale = cfProgress < 1 ? 1.02 - (cfProgress * 0.02) : 1;
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(newScale, newScale);
+        ctx.translate(-w / 2, -h / 2);
+        drawCover(imageRef.current, curAlpha, blurFactor);
+        ctx.restore();
+
+        // Cleanup prev after crossfade complete
+        if (cfProgress >= 1) {
+          prevImageRef.current = null;
         }
-
-        // Draw image covering the canvas (cover mode)
-        const img = imageRef.current;
-        const imgRatio = img.width / img.height;
-        const canvasRatio = w / h;
-        let drawW, drawH, drawX, drawY;
-
-        if (imgRatio > canvasRatio) {
-          drawH = h;
-          drawW = h * imgRatio;
-          drawX = (w - drawW) / 2;
-          drawY = 0;
-        } else {
-          drawW = w;
-          drawH = w / imgRatio;
-          drawX = 0;
-          drawY = (h - drawH) / 2;
-        }
-
-        ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
         // Image Latency Fallback: Grade Shift
         if (isStale) {
-          ctx.filter = 'none';
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Darken
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
           ctx.fillRect(0, 0, w, h);
-
-          // Technical indicator for the judge
           ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
           ctx.font = '14px Inter, sans-serif';
           ctx.textAlign = 'center';
           const msg = uiLanguage === 'ar' ? 'يتم تعديل المشهد البصري...' : 'Adjusting visual stream...';
           ctx.fillText(msg, w / 2, h - 30);
         }
-
-        // Reset state
-        ctx.filter = 'none';
-        ctx.globalAlpha = 1;
       }
 
       // 3. Vignette overlay (Use cached)

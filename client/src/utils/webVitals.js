@@ -9,7 +9,7 @@ function report(metric) {
     ts: Date.now(),
   };
 
-  const endpoint = import.meta.env.VITE_WEB_VITALS_ENDPOINT;
+  const endpoint = import.meta.env.VITE_WEB_VITALS_ENDPOINT || (import.meta.env.PROD ? '/telemetry/client' : '');
   if (endpoint) {
     const body = JSON.stringify(payload);
     if (navigator.sendBeacon) {

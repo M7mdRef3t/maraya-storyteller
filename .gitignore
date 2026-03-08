@@ -30,3 +30,11 @@ tree.txt
 user.txt
 server/server_out*.txt
 server/test_result*.txt
+
+# Local runtime / editor artifacts
+output/
+.vscode/
+.judge-dev-job
+.judge-dev-pid
+.judge-server-pid
+server/server/.data/

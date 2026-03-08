@@ -1,10 +1,21 @@
-﻿import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+
+function appendQuery(url, query = {}) {
+  const entries = Object.entries(query).filter(([, value]) => value != null && value !== '');
+  if (entries.length === 0) return url;
+
+  const nextUrl = new URL(url, window.location.origin);
+  entries.forEach(([key, value]) => {
+    nextUrl.searchParams.set(key, String(value));
+  });
+  return nextUrl.toString();
+}
 
 /**
  * WebSocket hook for Maraya story streaming.
  * Forked from dawayir's WebSocket pattern, simplified for scene-based messaging.
  */
-export default function useWebSocket() {
+export default function useWebSocket({ query } = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const wsRef = useRef(null);
@@ -30,11 +41,9 @@ export default function useWebSocket() {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Allow overriding the WebSocket endpoint in local/dev environments.
     const configuredUrl = import.meta.env.VITE_WS_URL;
     const host = window.location.host;
-    const url = configuredUrl || `${protocol}//${host}/ws`;
-
+    const url = appendQuery(configuredUrl || `${protocol}//${host}/ws`, query);
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -52,24 +61,21 @@ export default function useWebSocket() {
     };
 
     ws.onmessage = async (event) => {
-      // 1. Handle Binary Frames (Audio Data)
       if (event.data instanceof Blob) {
-        const handler = handlersRef.current['audio_chunk'];
+        const handler = handlersRef.current.audio_chunk;
         if (handler && lastMetaRef.current) {
           handler({
             meta: lastMetaRef.current,
             blob: event.data,
           });
-          lastMetaRef.current = null; // Consume the meta
+          lastMetaRef.current = null;
         }
         return;
       }
 
-      // 2. Handle JSON Frames
       try {
         const message = JSON.parse(event.data);
 
-        // If meta, store it to wait for the next binary frame
         if (message.type === 'audio_meta') {
           lastMetaRef.current = message;
         }
@@ -79,7 +85,6 @@ export default function useWebSocket() {
           handler(message);
         }
 
-        // Generic broadcaster
         if (handlersRef.current['*']) {
           handlersRef.current['*'](message);
         }
@@ -99,7 +104,6 @@ export default function useWebSocket() {
         return;
       }
 
-      // Auto-reconnect after 3 seconds for unexpected disconnects only.
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;
         connect();
@@ -112,7 +116,7 @@ export default function useWebSocket() {
       setError('Failed to connect to server');
       console.error('[ws] WebSocket error:', err);
     };
-  }, []);
+  }, [query]);
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
@@ -145,10 +149,8 @@ export default function useWebSocket() {
     delete handlersRef.current[type];
   }, []);
 
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
+  useEffect(() => () => {
+    disconnect();
   }, [disconnect]);
 
   return { isConnected, error, connect, disconnect, sendMessage, on, off };

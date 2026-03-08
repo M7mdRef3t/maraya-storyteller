@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import NarrationText from './NarrationText.jsx';
 import ChoiceButtons from './ChoiceButtons.jsx';
 
@@ -11,13 +11,35 @@ const REDIRECT_COMMANDS = [
   { id: 'fast', icon: '⚡', label: { ar: 'إيقاع سريع', en: 'Fast-paced' }, intensity: 0.75 },
 ];
 
+function getDuoMessage(uiLanguage, duoState) {
+  if (!duoState || duoState.role === 'solo') return '';
+  if (duoState.status === 'reconnecting') {
+    return uiLanguage === 'en'
+      ? `Waiting for ${duoState.partnerName || 'your partner'} to reconnect.`
+      : `بانتظار ${duoState.partnerName || 'شريكك'} ليعيد الاتصال.`;
+  }
+  if (duoState.mismatch) {
+    return uiLanguage === 'en'
+      ? 'Votes are split. Align on one path to move forward.'
+      : 'الأصوات منقسمة. اتفقوا على مسار واحد للمتابعة.';
+  }
+  if (duoState.selectedChoiceIndex != null && duoState.readyCount < duoState.requiredVotes) {
+    return uiLanguage === 'en'
+      ? `Your vote is in. Waiting for ${duoState.partnerName || 'your partner'}.`
+      : `تم تسجيل صوتك. بانتظار ${duoState.partnerName || 'شريكك'}.`;
+  }
+  if (duoState.readyCount > 0 && duoState.selectedChoiceIndex == null) {
+    return uiLanguage === 'en'
+      ? `${duoState.partnerName || 'Your partner'} has voted.`
+      : `قام ${duoState.partnerName || 'شريكك'} بالتصويت.`;
+  }
+  return uiLanguage === 'en'
+    ? 'Choose together to unlock the next scene.'
+    : 'اختارا معاً لفتح المشهد التالي.';
+}
+
 /**
  * SceneRenderer - Orchestrates the cinematic reveal of a single scene.
- *
- * Sequence:
- * 1. Scene image fades in on StoryCanvas (handled externally)
- * 2. Narration text typewriter begins
- * 3. Choice buttons appear after narration completes
  */
 export default function SceneRenderer({
   scene,
@@ -30,6 +52,8 @@ export default function SceneRenderer({
   sceneWord = 'المشهد',
   staleDroppedCount = 0,
   version = 0,
+  judgeMode = false,
+  duoState = null,
 }) {
   const [showChoices, setShowChoices] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
@@ -45,6 +69,22 @@ export default function SceneRenderer({
     ? scene.story_total_scenes
     : (Number.isFinite(scene?.total_scenes) ? scene.total_scenes : null);
 
+  const voteCounts = useMemo(() => {
+    const next = {};
+    for (const vote of duoState?.votes || []) {
+      if (typeof vote.choiceIndex === 'number') {
+        next[vote.choiceIndex] = (next[vote.choiceIndex] || 0) + 1;
+      }
+    }
+    return next;
+  }, [duoState?.votes]);
+
+  const redirectCommands = useMemo(() => (
+    judgeMode
+      ? REDIRECT_COMMANDS.filter((cmd) => ['darker', 'hope', 'cinematic'].includes(cmd.id))
+      : REDIRECT_COMMANDS
+  ), [judgeMode]);
+
   useEffect(() => {
     if (revealTimerRef.current) {
       clearTimeout(revealTimerRef.current);
@@ -58,7 +98,6 @@ export default function SceneRenderer({
     if (debugTimerRef.current) clearTimeout(debugTimerRef.current);
   }, []);
 
-  // Show debug overlay on version change (redirect)
   useEffect(() => {
     if (version > 0) {
       setShowDebug(true);
@@ -70,7 +109,6 @@ export default function SceneRenderer({
   }, [version]);
 
   const handleNarrationComplete = useCallback(() => {
-    // Delay choice appearance for dramatic effect.
     if (revealTimerRef.current) {
       clearTimeout(revealTimerRef.current);
     }
@@ -89,18 +127,28 @@ export default function SceneRenderer({
       ) : null}
 
       {!isFinal && onRedirect && (
-        <div className="live-redirect-bar">
-          {REDIRECT_COMMANDS.map(cmd => (
-            <button
-              key={cmd.id}
-              type="button"
-              className="live-redirect-btn"
-              onClick={() => onRedirect(cmd.label.en, cmd.intensity)}
-              title={cmd.label[uiLanguage]}
-            >
-              {cmd.icon}
-            </button>
-          ))}
+        <div className={`live-redirect-shell ${judgeMode ? 'live-redirect-shell--judge' : ''}`}>
+          {judgeMode && (
+            <p className="judge-story-cue">
+              {uiLanguage === 'en'
+                ? 'WOW moment: change the scene live while the narration is unfolding.'
+                : 'لحظة الإبهار: غيّر المشهد حيّاً أثناء انكشاف السرد.'}
+            </p>
+          )}
+          <div className="live-redirect-bar">
+            {redirectCommands.map((cmd) => (
+              <button
+                key={cmd.id}
+                type="button"
+                className={`live-redirect-btn ${judgeMode ? 'live-redirect-btn--judge' : ''}`}
+                onClick={() => onRedirect(cmd.label.en, cmd.intensity)}
+                title={cmd.label[uiLanguage]}
+              >
+                <span className="live-redirect-btn__icon">{cmd.icon}</span>
+                {judgeMode && <span className="live-redirect-btn__label">{cmd.label[uiLanguage]}</span>}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -113,12 +161,20 @@ export default function SceneRenderer({
         speed={narrationSpeed}
       />
 
+      {!isFinal && duoState?.role !== 'solo' && (
+        <div className={`duo-scene-status ${duoState?.mismatch ? 'duo-scene-status--warning' : ''}`}>
+          {getDuoMessage(uiLanguage, duoState)}
+        </div>
+      )}
+
       {!isFinal ? (
         <ChoiceButtons
           choices={scene.choices}
           uiLanguage={uiLanguage}
           onChoose={onChoose}
           visible={showChoices}
+          selectedIndex={duoState?.selectedChoiceIndex ?? null}
+          voteCounts={voteCounts}
         />
       ) : (
         <div className={`scene-final ${showChoices ? 'scene-final--visible' : ''}`}>
@@ -126,7 +182,6 @@ export default function SceneRenderer({
         </div>
       )}
 
-      {/* Subtle Debug Overlay for Documentation Proof */}
       <div className={`debug-tag ${showDebug ? 'debug-tag--visible' : ''}`}>
         <span className="debug-tag__version">v{version}</span>
         {staleDroppedCount > 0 && (

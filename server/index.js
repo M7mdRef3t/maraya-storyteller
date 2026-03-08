@@ -12,6 +12,8 @@ import {
   buildStorytellerPrompt,
   buildSpaceAnalysisPrompt,
   normalizeOutputMode,
+  detectSecretEnding,
+  getStorySceneLimit,
 } from './prompts/storyteller.js';
 import { validateEmotion, validateChoiceText, validateBase64 } from './validators.js';
 import { log, logDebug, logError } from './logger.js';
@@ -19,6 +21,10 @@ import { log, logDebug, logError } from './logger.js';
 // TTS & Narration
 import { generateNarrationAudio } from './services/tts/index.js';
 import paefService from './services/paef.js';
+import mirrorMemoryService from './services/mirrorMemory.js';
+import duoRoomStore from './services/duoRoomStore.js';
+import { buildFallbackScenes } from './services/storyFallback.js';
+import { inferEmotionFromWhisper } from './services/whisperEmotion.js';
 
 import { chunkArabic } from './utils/tts/chunkArabic.js';
 
@@ -40,6 +46,7 @@ log('Gemini & Imagen services initialized');
 
 const app = express();
 const server = createServer(app);
+const DUO_RECONNECT_GRACE_MS = Number(process.env.DUO_RECONNECT_GRACE_MS || 60000);
 
 function verifyClient(info, cb) {
   const origin = info.req.headers.origin;
@@ -87,9 +94,43 @@ const wss = new WebSocketServer({
 
 
 app.use(express.json());
-app.get('/health', (req, res) => res.send('OK'));
+app.post('/telemetry/client', express.text({ type: ['text/plain', 'application/json'], limit: '64kb' }), (req, res) => {
+  let payload = {};
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      payload = JSON.parse(req.body);
+    } catch {
+      payload = { raw: req.body };
+    }
+  }
+  log('[telemetry:client]', {
+    ...payload,
+    userAgent: req.headers['user-agent'] || '',
+    ip: req.ip,
+  });
+  res.status(202).json({ ok: true });
+});
 
-const MAX_SCENES = 7;
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    gemini: {
+      configured: Boolean(API_KEY),
+      model: process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash',
+      timeoutMs: Number(process.env.GEMINI_REQUEST_TIMEOUT_MS || 15000),
+      retries: Number(process.env.GEMINI_MAX_RETRIES || 2),
+    },
+    persistence: {
+      mirrorMemory: mirrorMemoryService.usingFirestore?.() ? 'firestore' : 'file',
+      duoRooms: duoRoomStore.usingFirestore?.() ? 'firestore' : 'file',
+    },
+    duo: {
+      activeRooms: duoRooms.size,
+      reconnectGraceMs: DUO_RECONNECT_GRACE_MS,
+    },
+  });
+});
 
 function buildUiStrings(outputMode) {
   if (outputMode === 'judge_en') {
@@ -100,6 +141,7 @@ function buildUiStrings(outputMode) {
       storyComplete: 'You have reached the end of this journey. But mirrors never truly end...',
       startErrorPrefix: 'Failed to start story:',
       nextError: 'Failed to generate the next scene.',
+      recoveryNotice: 'Maraya stabilized the scene locally so the journey can continue.',
     };
   }
 
@@ -111,6 +153,7 @@ function buildUiStrings(outputMode) {
       storyComplete: 'وصلت لنهاية الرحلة... بس المرايات عمرها ما بتخلص.',
       startErrorPrefix: 'القصة ما بدأتش:',
       nextError: 'ما قدرناش نكمّل المشهد اللي بعده.',
+      recoveryNotice: 'Ù…Ø±Ø§ÙŠØ§ Ø«Ø¨ØªØª Ø§Ù„Ù…Ø´Ù‡Ø¯ Ù…Ø¤Ù‚ØªÙ‹Ø§ Ø¹Ø´Ø§Ù† Ø§Ù„Ø±Ø­Ù„Ø© ØªÙƒÙ…Ù„.',
     };
   }
 
@@ -122,6 +165,7 @@ function buildUiStrings(outputMode) {
       storyComplete: 'أتممت الجلسة التعليمية بنجاح. العلم هو المفتاح.',
       startErrorPrefix: 'حدث خطأ في بدء الجلسة:',
       nextError: 'تعذر تحميل الجزء التعليمي التالي.',
+      recoveryNotice: 'Ø§Ø³ØªØ¹Ø§Ø¯Øª Ø§Ù„Ù…Ø±Ø§ÙŠØ§ Ø§Ù„Ù…Ø´Ù‡Ø¯ Ù…Ø¤Ù‚ØªÙ‹Ø§ Ù„ØªÙƒÙ…Ù„ Ø§Ù„Ø±Ø­Ù„Ø©.',
     };
   }
 
@@ -163,6 +207,235 @@ function buildFallbackChoices(outputMode) {
   ];
 }
 
+const ROOM_MEMBER_LIMIT = 2;
+const ROOM_BROADCAST_TYPES = new Set([
+  'status',
+  'space_reading',
+  'scene',
+  'scene_image',
+  'story_complete',
+  'error',
+  'audio_start',
+  'audio_meta',
+  'audio_end',
+  'redirect_ack',
+  'audio_cancel',
+  'timeline_reset',
+  'intervention_plan',
+  'secret_ending_unlocked',
+  'whisper_interpreted',
+  'notice',
+]);
+const duoRooms = new Map();
+const duoRoomExpiryTimers = new Map();
+const expiredRoomCleanupTimer = setInterval(() => {
+  duoRoomStore.cleanupExpired().catch((error) => {
+    logDebug('[duo] Failed to clean expired persisted rooms:', error?.message || error);
+  });
+}, 5 * 60 * 1000);
+
+if (typeof expiredRoomCleanupTimer.unref === 'function') {
+  expiredRoomCleanupTimer.unref();
+}
+
+function normalizeRoomId(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6);
+}
+
+function createRoomId() {
+  let roomId = '';
+  do {
+    roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  } while (duoRooms.has(roomId));
+  return roomId;
+}
+
+function sendSocketJson(socket, type, v, data = {}) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify({ type, v, ...data }));
+}
+
+function broadcastRoomBinary(room, buffer) {
+  room.members.forEach((member) => {
+    if (member.ws?.readyState === WebSocket.OPEN) {
+      member.ws.send(buffer, { binary: true });
+    }
+  });
+}
+
+function buildPersistedPendingVote(pendingVote) {
+  if (!pendingVote) return null;
+  return {
+    sceneId: pendingVote.sceneId,
+    choices: pendingVote.choices,
+    votes: Array.from(pendingVote.votes.values()),
+    requiredVotes: pendingVote.requiredVotes,
+    mismatch: pendingVote.mismatch,
+    recoveryNotice: 'Ø§Ø³ØªØ¹Ø§Ø¯Øª Ø§Ù„Ù…Ø±Ø§ÙŠØ§ Ø§Ù„Ù…Ø´Ù‡Ø¯ Ù…Ø¤Ù‚ØªÙ‹Ø§ Ù„ÙƒÙŠ ØªÙˆØ§ØµÙ„ Ø§Ù„Ø±Ø­Ù„Ø©.',
+  };
+}
+
+function hydratePendingVote(snapshot) {
+  if (!snapshot) return null;
+  return {
+    sceneId: snapshot.sceneId || '',
+    choices: Array.isArray(snapshot.choices) ? snapshot.choices : [],
+    votes: new Map(
+      Array.isArray(snapshot.votes)
+        ? snapshot.votes.map((vote) => [vote.sessionId, vote])
+        : [],
+    ),
+    requiredVotes: Number.isFinite(snapshot.requiredVotes) ? snapshot.requiredVotes : ROOM_MEMBER_LIMIT,
+    mismatch: Boolean(snapshot.mismatch),
+  };
+}
+
+function ensureRoomTimestamps(room) {
+  const nowIso = new Date().toISOString();
+  room.createdAt = room.createdAt || nowIso;
+  room.updatedAt = nowIso;
+}
+
+function getRoomSnapshot(room) {
+  ensureRoomTimestamps(room);
+  return {
+    id: room.id,
+    hostSessionId: room.hostSessionId,
+    storyStarted: Boolean(room.storyStarted),
+    pendingVote: buildPersistedPendingVote(room.pendingVote),
+    members: Array.from(room.members.values()).map((member) => ({
+      sessionId: member.sessionId,
+      userId: member.userId,
+      name: member.name,
+      connected: Boolean(member.connected),
+      lastSeenAt: member.lastSeenAt || room.updatedAt,
+    })),
+    createdAt: room.createdAt,
+    updatedAt: room.updatedAt,
+    expiresAt: room.expiresAt || null,
+  };
+}
+
+async function persistRoom(room) {
+  ensureRoomTimestamps(room);
+  await duoRoomStore.saveRoom(getRoomSnapshot(room));
+}
+
+async function deletePersistedRoom(roomId) {
+  duoRooms.delete(roomId);
+  const timer = duoRoomExpiryTimers.get(roomId);
+  if (timer) {
+    clearTimeout(timer);
+    duoRoomExpiryTimers.delete(roomId);
+  }
+  await duoRoomStore.deleteRoom(roomId);
+}
+
+function scheduleRoomExpiry(room, reason = 'disconnect') {
+  room.expiresAt = new Date(Date.now() + DUO_RECONNECT_GRACE_MS).toISOString();
+  const existingTimer = duoRoomExpiryTimers.get(room.id);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(() => {
+    deletePersistedRoom(room.id).catch((error) => {
+      logDebug(`[duo] Failed to expire room ${room.id} after ${reason}:`, error?.message || error);
+    });
+  }, DUO_RECONNECT_GRACE_MS + 100);
+
+  duoRoomExpiryTimers.set(room.id, timer);
+}
+
+function clearRoomExpiry(room) {
+  room.expiresAt = null;
+  const timer = duoRoomExpiryTimers.get(room.id);
+  if (timer) {
+    clearTimeout(timer);
+    duoRoomExpiryTimers.delete(room.id);
+  }
+}
+
+function restoreRoomFromSnapshot(snapshot) {
+  if (!snapshot?.id) return null;
+
+  return {
+    id: snapshot.id,
+    hostSessionId: snapshot.hostSessionId,
+    members: new Map(
+      (snapshot.members || []).map((member) => [member.sessionId, {
+        sessionId: member.sessionId,
+        userId: member.userId,
+        name: member.name,
+        connected: Boolean(member.connected),
+        ws: null,
+        lastSeenAt: member.lastSeenAt,
+      }]),
+    ),
+    storyStarted: Boolean(snapshot.storyStarted),
+    pendingVote: hydratePendingVote(snapshot.pendingVote),
+    controller: null,
+    createdAt: snapshot.createdAt,
+    updatedAt: snapshot.updatedAt,
+    expiresAt: snapshot.expiresAt || null,
+  };
+}
+
+function serializeRoomForMember(room, sessionId) {
+  const members = Array.from(room.members.values()).map((member) => ({
+    sessionId: member.sessionId,
+    name: member.name,
+    isHost: member.sessionId === room.hostSessionId,
+    connected: Boolean(member.connected),
+  }));
+  const connectedCount = members.filter((member) => member.connected).length;
+  const disconnectedPartner = members.find((member) => member.sessionId !== sessionId && !member.connected);
+  const selfVoteIndex = room.pendingVote?.votes.get(sessionId)?.choiceIndex ?? null;
+  const votes = room.pendingVote
+    ? Array.from(room.pendingVote.votes.values()).map((vote) => ({
+      sessionId: vote.sessionId,
+      name: vote.name,
+      choiceIndex: vote.choiceIndex,
+    }))
+    : [];
+
+  return {
+    roomId: room.id,
+    role: room.hostSessionId === sessionId ? 'host' : 'guest',
+    status: room.storyStarted
+      ? (disconnectedPartner ? 'reconnecting' : 'active')
+      : (connectedCount < ROOM_MEMBER_LIMIT
+        ? (room.members.size >= ROOM_MEMBER_LIMIT ? 'reconnecting' : 'waiting')
+        : 'ready'),
+    partnerName: members.find((member) => member.sessionId !== sessionId)?.name || '',
+    members,
+    canStart: room.hostSessionId === sessionId && connectedCount >= ROOM_MEMBER_LIMIT,
+    storyStarted: Boolean(room.storyStarted),
+    votes,
+    mismatch: Boolean(room.pendingVote?.mismatch),
+    readyCount: room.pendingVote?.votes.size || 0,
+    requiredVotes: room.pendingVote?.requiredVotes || ROOM_MEMBER_LIMIT,
+    selectedChoiceIndex: selfVoteIndex,
+    notice: disconnectedPartner
+      ? `Waiting for ${disconnectedPartner.name || 'your partner'} to reconnect.`
+      : '',
+  };
+}
+
+function emitRoomState(room, v = 0, extra = {}) {
+  room.members.forEach((member) => {
+    sendSocketJson(member.ws, 'duo_state', v, {
+      room: {
+        ...serializeRoomForMember(room, member.sessionId),
+        ...extra,
+      },
+    });
+  });
+}
+
 wss.on('connection', (ws, req) => {
   log('Client connected');
 
@@ -178,32 +451,169 @@ wss.on('connection', (ws, req) => {
 
   let conversationHistory = [];
   let currentEmotion = 'hope';
+  let emotionHistory = [];
+  let currentJourneyScenes = [];
+  let currentWhisperText = '';
+  let currentSpaceReading = '';
+  let currentSecretEndingKey = null;
+  let activeDuoRoomId = null;
+  let duoRole = 'solo';
+  let duoDisplayName = `Mirror-${sessionId.slice(-4)}`;
 
   let currentOutputMode = 'judge_en';
   let sceneCount = 0;
   let currentSceneVersion = 0;
   let abortController = new AbortController();
 
-  const sendMessage = (type, data) => {
+  const getActiveRoom = () => (activeDuoRoomId ? duoRooms.get(activeDuoRoomId) || null : null);
+  const isRoomController = () => {
+    const room = getActiveRoom();
+    return Boolean(room && room.hostSessionId === sessionId);
+  };
+
+  const sendPrivateMessage = (type, data = {}) => {
+    sendSocketJson(ws, type, currentSceneVersion, data);
+  };
+
+  const sendBinary = (buffer) => {
+    const room = getActiveRoom();
+    if (room && isRoomController()) {
+      broadcastRoomBinary(room, buffer);
+      return;
+    }
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type, v: currentSceneVersion, ...data }));
+      ws.send(buffer, { binary: true });
+    }
+  };
+
+  const sendMessage = (type, data = {}) => {
+    const room = getActiveRoom();
+    if (room && isRoomController() && ROOM_BROADCAST_TYPES.has(type)) {
+      room.members.forEach((member) => {
+        sendSocketJson(member.ws, type, currentSceneVersion, data);
+      });
+      return;
+    }
+    sendPrivateMessage(type, data);
+  };
+
+  const emitVoteUpdate = () => {
+    const room = getActiveRoom();
+    if (!room) return;
+
+    const votes = room.pendingVote
+      ? Array.from(room.pendingVote.votes.values()).map((vote) => ({
+        sessionId: vote.sessionId,
+        name: vote.name,
+        choiceIndex: vote.choiceIndex,
+      }))
+      : [];
+
+    room.members.forEach((member) => {
+      sendSocketJson(member.ws, 'duo_vote_update', currentSceneVersion, {
+        votes,
+        mismatch: Boolean(room.pendingVote?.mismatch),
+        readyCount: room.pendingVote?.votes.size || 0,
+        requiredVotes: room.pendingVote?.requiredVotes || ROOM_MEMBER_LIMIT,
+        selfVoteIndex: room.pendingVote?.votes.get(member.sessionId)?.choiceIndex ?? null,
+      });
+    });
+  };
+
+  const refreshMemorySnapshot = async (targetUserId = userId, targetWs = ws) => {
+    const snapshot = await mirrorMemoryService.getSnapshot(targetUserId);
+    sendSocketJson(targetWs, 'memory_snapshot', currentSceneVersion, { snapshot });
+    return snapshot;
+  };
+
+  const persistActiveRoom = async () => {
+    const room = getActiveRoom();
+    if (!room) return;
+    await persistRoom(room);
+  };
+
+  const sendNotice = (message, level = 'warning') => {
+    if (!message) return;
+    sendMessage('notice', { level, message });
+  };
+
+  const resetStoryState = () => {
+    abortController.abort();
+    abortController = new AbortController();
+    conversationHistory = [];
+    emotionHistory = [];
+    sceneCount = 0;
+    currentJourneyScenes = [];
+    currentWhisperText = '';
+    currentSpaceReading = '';
+    currentSecretEndingKey = null;
+    const room = getActiveRoom();
+    if (room) {
+      room.storyStarted = false;
+      room.pendingVote = null;
+      room.updatedAt = new Date().toISOString();
+    }
+  };
+
+  const persistMirrorMemory = async (endingMessage) => {
+    const room = getActiveRoom();
+    const members = room && isRoomController()
+      ? Array.from(room.members.values())
+      : [{ userId, ws }];
+
+    for (const member of members) {
+      const snapshot = await mirrorMemoryService.rememberJourney({
+        userId: member.userId,
+        outputMode: currentOutputMode,
+        seedEmotion: emotionHistory[0] || currentEmotion,
+        emotionHistory,
+        whisperText: currentWhisperText,
+        spaceReading: currentSpaceReading,
+        endingMessage,
+        secretEndingKey: currentSecretEndingKey,
+        scenes: currentJourneyScenes,
+      });
+      sendSocketJson(member.ws, 'memory_snapshot', currentSceneVersion, { snapshot });
+    }
+  };
+
+  const generateScenesResilient = async ({
+    purpose,
+    systemPrompt,
+    outputMode,
+    uiStrings,
+    fallbackOptions,
+  }) => {
+    try {
+      const scenes = await generateScenes(systemPrompt, conversationHistory, outputMode);
+      if (!scenes || scenes.length === 0) {
+        throw new Error('No scenes generated');
+      }
+      return scenes;
+    } catch (error) {
+      logError(`[story] ${purpose} failed; using local fallback scene.`, error);
+      sendNotice(uiStrings.recoveryNotice, 'warning');
+      return buildFallbackScenes(fallbackOptions);
     }
   };
 
   const streamScenes = (scenes, baseSceneCount = 0, uiStrings, outputMode = currentOutputMode, signal = abortController.signal) => {
     let isFinal = false;
+    const room = getActiveRoom();
+    const storySceneLimit = getStorySceneLimit(outputMode);
 
     // First loop: stream the text for all scenes immediately
     for (let i = 0; i < scenes.length; i += 1) {
       if (signal && signal.aborted) return;
       const scene = scenes[i];
       const storySceneNumber = baseSceneCount + i + 1;
-      const reachedStoryLimit = storySceneNumber >= MAX_SCENES;
+      const reachedStoryLimit = storySceneNumber >= storySceneLimit;
       const hasChoices = Array.isArray(scene.choices) && scene.choices.length > 0;
 
       const normalizedChoices = reachedStoryLimit
         ? []
         : (hasChoices ? scene.choices.slice(0, 2) : buildFallbackChoices(outputMode));
+      const shouldEndScene = reachedStoryLimit || normalizedChoices.length === 0;
 
       if (!reachedStoryLimit && !hasChoices) {
         logDebug(
@@ -211,7 +621,14 @@ wss.on('connection', (ws, req) => {
         );
       }
 
-      if (reachedStoryLimit) isFinal = true;
+      if (shouldEndScene) isFinal = true;
+
+      currentJourneyScenes.push({
+        scene_id: scene.scene_id,
+        narration_ar: scene.narration_ar,
+        audio_mood: scene.audio_mood,
+        story_scene_number: storySceneNumber,
+      });
 
       sendMessage('scene', {
         scene: {
@@ -221,10 +638,33 @@ wss.on('connection', (ws, req) => {
           scene_index: i,
           total_scenes: scenes.length,
           story_scene_number: storySceneNumber,
-          story_total_scenes: MAX_SCENES,
-          is_final: reachedStoryLimit,
+          story_total_scenes: storySceneLimit,
+          is_final: shouldEndScene,
         },
       });
+
+      if (room && isRoomController()) {
+        room.storyStarted = true;
+        if (shouldEndScene) {
+          room.pendingVote = null;
+        } else {
+          room.pendingVote = {
+            sceneId: scene.scene_id,
+            choices: normalizedChoices,
+            votes: new Map(),
+            requiredVotes: Math.min(room.members.size, ROOM_MEMBER_LIMIT),
+            mismatch: false,
+          };
+        }
+      }
+    }
+
+    if (room && isRoomController()) {
+      persistRoom(room).catch((error) => {
+        logDebug('[duo] Failed to persist room during streaming:', error?.message || error);
+      });
+      emitRoomState(room, currentSceneVersion);
+      emitVoteUpdate();
     }
 
     // Second loop: background sequential image generation to avoid API rate limits (N+1 parallel spam)
@@ -248,6 +688,18 @@ wss.on('connection', (ws, req) => {
       if (isFinal) {
         setTimeout(() => {
           sendMessage('story_complete', { message: uiStrings.storyComplete });
+          persistMirrorMemory(uiStrings.storyComplete).catch((error) => {
+            logDebug('Failed to persist mirror memory:', error?.message || error);
+          });
+          if (room && isRoomController()) {
+            room.storyStarted = false;
+            room.pendingVote = null;
+            persistRoom(room).catch((error) => {
+              logDebug('[duo] Failed to persist completed room:', error?.message || error);
+            });
+            emitRoomState(room, currentSceneVersion);
+            emitVoteUpdate();
+          }
         }, 500);
       }
     })();
@@ -290,11 +742,8 @@ wss.on('connection', (ws, req) => {
 
             if (signal && signal.aborted) return;
 
-            if (ws.readyState === WebSocket.OPEN) {
-              // Send raw binary frame
-              ws.send(audioBuffer, { binary: true });
-              logDebug(`[tts] Sent audio chunk ${i} for scene ${scene.scene_id}`);
-            }
+            sendBinary(audioBuffer);
+            logDebug(`[tts] Sent audio chunk ${i} for scene ${scene.scene_id}`);
           }
 
           sendMessage('audio_end', { sceneId: scene.scene_id });
@@ -308,11 +757,23 @@ wss.on('connection', (ws, req) => {
   const handleStartStory = async (payload) => {
     try {
       currentSceneVersion += 1;
-      abortController.abort();
-      abortController = new AbortController();
+      resetStoryState();
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
       let emotion = validateEmotion(payload.emotion || 'hope');
+      currentWhisperText = validateChoiceText(payload.whisper_text || '');
+
+      if (currentWhisperText) {
+        const whisperResult = inferEmotionFromWhisper(currentWhisperText);
+        emotion = whisperResult.emotion;
+        sendMessage('whisper_interpreted', {
+          transcript: currentWhisperText,
+          emotion,
+          confidence: whisperResult.confidence,
+        });
+      }
+
+      currentSpaceReading = '';
 
       if (payload.image) {
         if (!validateBase64(payload.image)) {
@@ -326,24 +787,50 @@ wss.on('connection', (ws, req) => {
           const spacePrompt = buildSpaceAnalysisPrompt(currentOutputMode);
           const analysis = await analyzeSpace(spacePrompt, payload.image, payload.mimeType);
           emotion = analysis.detected_emotion || 'hope';
+          currentSpaceReading = analysis.space_reading || '';
 
           sendMessage('space_reading', {
             emotion,
-            reading: analysis.space_reading || '',
+            reading: currentSpaceReading,
           });
           log(`Space analysis: detected emotion = ${emotion}`);
         } catch (err) {
           logError('Space analysis failed, using default emotion:', err.message);
+          sendNotice(uiStrings.recoveryNotice, 'warning');
           emotion = 'hope';
         }
       }
 
       currentEmotion = emotion;
+      emotionHistory = [emotion];
       sceneCount = 0;
+      currentSecretEndingKey = null;
+      const memorySnapshot = await mirrorMemoryService.getSnapshot(userId);
+      const memoryContext = mirrorMemoryService.buildPromptMemory(memorySnapshot);
+      const room = getActiveRoom();
+      const duoContext = room && room.members.size >= 2
+        ? `Duo story participants: ${Array.from(room.members.values()).map((member) => member.name).join(' and ')}. Keep the shared point of view emotionally meaningful for both.`
+        : '';
+      const introParts = [
+        { text: `Emotion: ${emotion}. Output mode: ${currentOutputMode}. Start the story.` },
+      ];
+      if (currentWhisperText) {
+        introParts.push({ text: `Whispered seed: "${currentWhisperText}".` });
+      }
+      if (currentSpaceReading) {
+        introParts.push({ text: `Space reading: ${currentSpaceReading}` });
+      }
+      if (memoryContext) {
+        introParts.push({ text: memoryContext });
+      }
+      if (duoContext) {
+        introParts.push({ text: duoContext });
+      }
+
       conversationHistory = [
         {
           role: 'user',
-          parts: [{ text: `Emotion: ${emotion}. Output mode: ${currentOutputMode}. Start the story.` }],
+          parts: introParts,
         },
       ];
 
@@ -351,11 +838,18 @@ wss.on('connection', (ws, req) => {
       sendMessage('status', { text: uiStrings.shapingStory });
 
       const systemPrompt = buildStorytellerPrompt(emotion, false, currentOutputMode);
-      const scenes = await generateScenes(systemPrompt, conversationHistory, currentOutputMode);
-
-      if (!scenes || scenes.length === 0) {
-        throw new Error('No scenes generated');
-      }
+      const scenes = await generateScenesResilient({
+        purpose: 'start_story',
+        systemPrompt,
+        outputMode: currentOutputMode,
+        uiStrings,
+        fallbackOptions: {
+          emotion,
+          outputMode: currentOutputMode,
+          stage: 'opening',
+          sceneNumber: 1,
+        },
+      });
 
       conversationHistory.push({
         role: 'model',
@@ -378,14 +872,22 @@ wss.on('connection', (ws, req) => {
       currentSceneVersion += 1;
       abortController.abort();
       abortController = new AbortController();
-      if (sceneCount >= MAX_SCENES) {
+      if (sceneCount >= getStorySceneLimit(currentOutputMode)) {
         const uiStrings = buildUiStrings(currentOutputMode);
         sendMessage('story_complete', { message: uiStrings.storyComplete });
+        persistMirrorMemory(uiStrings.storyComplete).catch((error) => {
+          logDebug('Failed to persist mirror memory:', error?.message || error);
+        });
         return;
       }
 
       currentOutputMode = normalizeOutputMode(payload.output_mode || currentOutputMode);
       const uiStrings = buildUiStrings(currentOutputMode);
+      const room = getActiveRoom();
+      if (room && isRoomController()) {
+        room.pendingVote = null;
+        emitVoteUpdate();
+      }
 
       let choiceText = validateChoiceText(payload.choice_text || '');
       if (currentOutputMode.startsWith('ar')) {
@@ -397,6 +899,7 @@ wss.on('connection', (ws, req) => {
       if (emotionShift && emotionShift !== currentEmotion) {
         currentEmotion = emotionShift;
       }
+      emotionHistory.push(currentEmotion);
 
       conversationHistory.push({
         role: 'user',
@@ -406,18 +909,40 @@ wss.on('connection', (ws, req) => {
       log(`User choice received: "${choiceText}" | mode=${currentOutputMode}`);
       sendMessage('status', { text: uiStrings.nextScene });
 
-      const isNearEnd = sceneCount >= MAX_SCENES - 1;
+      const storySceneLimit = getStorySceneLimit(currentOutputMode);
+      const isNearEnd = sceneCount >= storySceneLimit - 1;
+
+      // Detect secret ending based on emotion pattern
+      const secretEnding = isNearEnd ? detectSecretEnding(emotionHistory, currentOutputMode) : null;
+      if (secretEnding) {
+        currentSecretEndingKey = secretEnding.key;
+        log(`Secret ending unlocked: ${secretEnding.key}`);
+        sendMessage('secret_ending_unlocked', { key: secretEnding.key });
+      }
+
       const systemPrompt = buildStorytellerPrompt(
         currentEmotion,
         true,
         currentOutputMode,
         isNearEnd,
+        null,
+        secretEnding,
       );
 
-      const scenes = await generateScenes(systemPrompt, conversationHistory, currentOutputMode);
-      if (!scenes || scenes.length === 0) {
-        throw new Error('No scenes generated');
-      }
+      const scenes = await generateScenesResilient({
+        purpose: 'choice',
+        systemPrompt,
+        outputMode: currentOutputMode,
+        uiStrings,
+        fallbackOptions: {
+          emotion: currentEmotion,
+          outputMode: currentOutputMode,
+          stage: 'continue',
+          choiceText,
+          sceneNumber: sceneCount + 1,
+          allowFinalEnding: isNearEnd,
+        },
+      });
 
       conversationHistory.push({
         role: 'model',
@@ -449,8 +974,15 @@ wss.on('connection', (ws, req) => {
       abortController.abort();
       abortController = new AbortController();
       const signal = abortController.signal;
+      currentJourneyScenes = [];
+      currentSecretEndingKey = null;
 
       const uiStrings = buildUiStrings(currentOutputMode);
+      const room = getActiveRoom();
+      if (room && isRoomController()) {
+        room.pendingVote = null;
+        emitVoteUpdate();
+      }
 
       // 2. Acknowledge and command client to clear queues & reset timeline
       sendMessage('redirect_ack', { sceneId, fromIndex: atIndex });
@@ -476,10 +1008,19 @@ wss.on('connection', (ws, req) => {
         parts: [{ text: `[LIVE REDIRECTION] Cancel the previous trajectory. Hard pivot tone/pacing to "${command}" with intensity ${intensity}. Regenerate seamlessly from scene ${sceneId}, index ${atIndex}. Output exactly 1 scene.` }]
       });
 
-      const scenes = await generateScenes(redirectPrompt, conversationHistory, currentOutputMode);
-      if (!scenes || scenes.length === 0) {
-        throw new Error('No redirect scenes generated');
-      }
+      const scenes = await generateScenesResilient({
+        purpose: 'redirect',
+        systemPrompt: redirectPrompt,
+        outputMode: currentOutputMode,
+        uiStrings,
+        fallbackOptions: {
+          emotion: currentEmotion,
+          outputMode: currentOutputMode,
+          stage: 'redirect',
+          redirectCommand: command,
+          sceneNumber: sceneCount + 1,
+        },
+      });
 
       conversationHistory.push({
         role: 'model',
@@ -499,6 +1040,286 @@ wss.on('connection', (ws, req) => {
     }
   };
 
+  const buildSoloRoomState = (error = '') => ({
+    roomId: '',
+    role: 'solo',
+    status: 'idle',
+    partnerName: '',
+    members: [],
+    canStart: false,
+    storyStarted: false,
+    votes: [],
+    mismatch: false,
+    readyCount: 0,
+    requiredVotes: ROOM_MEMBER_LIMIT,
+    selectedChoiceIndex: null,
+    notice: '',
+    ...(error ? { error } : {}),
+  });
+
+  const leaveActiveRoom = (hostLeftMessage = 'The host closed the duo room.') => {
+    const room = getActiveRoom();
+    if (!room) {
+      duoRole = 'solo';
+      activeDuoRoomId = null;
+      return;
+    }
+
+    const wasHost = room.hostSessionId === sessionId;
+    room.members.delete(sessionId);
+    activeDuoRoomId = null;
+    duoRole = 'solo';
+
+    if (wasHost) {
+      room.members.forEach((member) => {
+        sendSocketJson(member.ws, 'duo_closed', currentSceneVersion, { message: hostLeftMessage });
+      });
+      deletePersistedRoom(room.id).catch((error) => {
+        logDebug('[duo] Failed to delete host-closed room:', error?.message || error);
+      });
+      return;
+    }
+
+    if (room.members.size === 0) {
+      deletePersistedRoom(room.id).catch((error) => {
+        logDebug('[duo] Failed to delete empty room:', error?.message || error);
+      });
+      return;
+    }
+
+    clearRoomExpiry(room);
+    room.pendingVote = null;
+    room.storyStarted = false;
+    room.updatedAt = new Date().toISOString();
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist guest leave:', error?.message || error);
+    });
+    emitRoomState(room, currentSceneVersion);
+  };
+
+  const handleUnexpectedRoomDisconnect = () => {
+    const room = getActiveRoom();
+    if (!room) return;
+
+    const member = room.members.get(sessionId);
+    if (!member) return;
+
+    member.connected = false;
+    member.ws = null;
+    member.lastSeenAt = new Date().toISOString();
+    room.pendingVote = room.pendingVote
+      ? {
+        ...room.pendingVote,
+        votes: new Map(
+          Array.from(room.pendingVote.votes.entries()).filter(([voteSessionId]) => {
+            const voteMember = room.members.get(voteSessionId);
+            return voteMember?.connected !== false;
+          }),
+        ),
+      }
+      : null;
+
+    scheduleRoomExpiry(room, 'socket-close');
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist disconnected room:', error?.message || error);
+    });
+    emitRoomState(room, currentSceneVersion);
+    emitVoteUpdate();
+  };
+
+  const hostDuoRoom = (name) => {
+    if (activeDuoRoomId) {
+      leaveActiveRoom();
+    }
+
+    duoDisplayName = String(name || duoDisplayName).trim().slice(0, 32) || duoDisplayName;
+    const roomId = createRoomId();
+    const room = {
+      id: roomId,
+      hostSessionId: sessionId,
+      members: new Map([
+        [sessionId, {
+          sessionId,
+          userId,
+          name: duoDisplayName,
+          ws,
+          connected: true,
+          lastSeenAt: new Date().toISOString(),
+        }],
+      ]),
+      storyStarted: false,
+      pendingVote: null,
+      controller: {
+        handleStartStory,
+        handleChoice,
+        executeRedirect,
+      },
+    };
+
+    duoRooms.set(roomId, room);
+    activeDuoRoomId = roomId;
+    duoRole = 'host';
+    clearRoomExpiry(room);
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist hosted room:', error?.message || error);
+    });
+    emitRoomState(room, currentSceneVersion);
+  };
+
+  const joinDuoRoom = (roomId, name) => {
+    const normalized = normalizeRoomId(roomId);
+    const room = duoRooms.get(normalized);
+
+    if (!room) {
+      sendPrivateMessage('duo_state', { room: buildSoloRoomState('Room not found.') });
+      return;
+    }
+
+    if (room.storyStarted) {
+      sendPrivateMessage('duo_state', { room: buildSoloRoomState('This room is already in a live story.') });
+      return;
+    }
+
+    if (room.members.size >= ROOM_MEMBER_LIMIT) {
+      sendPrivateMessage('duo_state', { room: buildSoloRoomState('This duo room is full.') });
+      return;
+    }
+
+    if (activeDuoRoomId) {
+      leaveActiveRoom();
+    }
+
+    duoDisplayName = String(name || duoDisplayName).trim().slice(0, 32) || duoDisplayName;
+    room.members.set(sessionId, {
+      sessionId,
+      userId,
+      name: duoDisplayName,
+      ws,
+      connected: true,
+      lastSeenAt: new Date().toISOString(),
+    });
+    activeDuoRoomId = normalized;
+    duoRole = 'guest';
+    clearRoomExpiry(room);
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist joined room:', error?.message || error);
+    });
+    emitRoomState(room, currentSceneVersion);
+  };
+
+  const resetDuoRoom = () => {
+    const room = getActiveRoom();
+    if (!room) return;
+
+    currentSceneVersion += 1;
+    resetStoryState();
+    room.storyStarted = false;
+    room.pendingVote = null;
+    room.members.forEach((member) => {
+      sendSocketJson(member.ws, 'duo_story_reset', currentSceneVersion, {
+        message: 'The duo journey was reset.',
+      });
+    });
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist duo reset:', error?.message || error);
+    });
+    emitRoomState(room, currentSceneVersion);
+  };
+
+  const recordDuoVote = (message) => {
+    const room = getActiveRoom();
+    if (!room || !room.pendingVote) return;
+
+    const choiceIndex = Number(message.choiceIndex);
+    const choice = room.pendingVote.choices[choiceIndex];
+    const member = room.members.get(sessionId);
+    if (!choice || !member) return;
+
+    room.pendingVote.votes.set(sessionId, {
+      sessionId,
+      name: member.name,
+      choiceIndex,
+      choiceText: choice.text_ar,
+      emotionShift: choice.emotion_shift,
+      outputMode: normalizeOutputMode(message.output_mode || currentOutputMode),
+    });
+
+    const voteChoices = Array.from(room.pendingVote.votes.values()).map((vote) => vote.choiceIndex);
+    room.pendingVote.mismatch = room.pendingVote.votes.size >= room.pendingVote.requiredVotes
+      && new Set(voteChoices).size > 1;
+
+    persistRoom(room).catch((error) => {
+      logDebug('[duo] Failed to persist duo vote:', error?.message || error);
+    });
+    emitVoteUpdate();
+
+    if (room.pendingVote.votes.size < room.pendingVote.requiredVotes) {
+      return;
+    }
+
+    const uniqueChoices = new Set(voteChoices);
+    if (uniqueChoices.size !== 1) {
+      return;
+    }
+
+    const selectedVote = room.pendingVote.votes.values().next().value;
+    room.pendingVote = null;
+    emitVoteUpdate();
+
+    if (room.controller?.handleChoice) {
+      room.controller.handleChoice({
+        choice_text: selectedVote.choiceText,
+        emotion_shift: selectedVote.emotionShift,
+        output_mode: selectedVote.outputMode,
+      });
+    }
+  };
+
+  const restorePersistedRoom = async () => {
+    const snapshot = await duoRoomStore.findRoomBySession(sessionId);
+    if (!snapshot) return;
+
+    if (snapshot.expiresAt && Date.parse(snapshot.expiresAt) <= Date.now()) {
+      await duoRoomStore.deleteRoom(snapshot.id);
+      return;
+    }
+
+    let room = duoRooms.get(snapshot.id);
+    if (!room) {
+      room = restoreRoomFromSnapshot(snapshot);
+      duoRooms.set(snapshot.id, room);
+    }
+
+    const member = room.members.get(sessionId);
+    if (!member) return;
+
+    clearRoomExpiry(room);
+    member.ws = ws;
+    member.connected = true;
+    member.lastSeenAt = new Date().toISOString();
+    activeDuoRoomId = room.id;
+    duoRole = room.hostSessionId === sessionId ? 'host' : 'guest';
+    duoDisplayName = member.name || duoDisplayName;
+    if (duoRole === 'host') {
+      room.controller = {
+        handleStartStory,
+        handleChoice,
+        executeRedirect,
+      };
+    }
+    await persistRoom(room);
+    emitRoomState(room, currentSceneVersion);
+    emitVoteUpdate();
+  };
+
+  restorePersistedRoom().catch((error) => {
+    logDebug('[duo] Failed to restore persisted room:', error?.message || error);
+  });
+
+  refreshMemorySnapshot().catch((error) => {
+    logDebug('Failed to load mirror memory snapshot:', error?.message || error);
+  });
+
   ws.on('message', (data, isBinary) => {
     if (isBinary) return;
 
@@ -507,17 +1328,64 @@ wss.on('connection', (ws, req) => {
       logDebug('Received:', message.type);
 
       switch (message.type) {
+        case 'duo_host':
+          hostDuoRoom(message.name);
+          break;
+        case 'duo_join':
+          joinDuoRoom(message.roomId, message.name);
+          break;
+        case 'duo_leave':
+          leaveActiveRoom('The host closed the duo room.');
+          sendPrivateMessage('duo_state', { room: buildSoloRoomState() });
+          break;
+        case 'duo_reset':
+          resetDuoRoom();
+          break;
+        case 'duo_vote':
+          recordDuoVote(message);
+          break;
         case 'start_story':
+          if (duoRole === 'guest') {
+            sendPrivateMessage('duo_state', {
+              room: {
+                ...buildSoloRoomState('Only the host can start a duo story.'),
+                ...(getActiveRoom() ? serializeRoomForMember(getActiveRoom(), sessionId) : {}),
+              },
+            });
+            break;
+          }
+          if (getActiveRoom()) {
+            const room = getActiveRoom();
+            const connectedMembers = Array.from(room.members.values()).filter((member) => member.connected).length;
+            if (connectedMembers < ROOM_MEMBER_LIMIT) {
+              sendPrivateMessage('duo_state', {
+                room: {
+                  ...serializeRoomForMember(room, sessionId),
+                  error: 'A second player has not joined yet.',
+                },
+              });
+              break;
+            }
+            room.storyStarted = true;
+            room.pendingVote = null;
+            persistRoom(room).catch((error) => {
+              logDebug('[duo] Failed to persist story start:', error?.message || error);
+            });
+            emitRoomState(room, currentSceneVersion);
+          }
           handleStartStory(message);
           break;
         case 'choose':
+          if (duoRole === 'guest') break;
           handleChoice(message);
           break;
         case 'redirect':
           // Backward compatibility: execute immediately
+          if (duoRole === 'guest') break;
           executeRedirect(message, false);
           break;
         case 'redirect_intent':
+          if (duoRole === 'guest') break;
           // 1. Immediately send Ack for Proof and UI responsiveness
           sendMessage('redirect_ack', {
             sceneId: message.sceneId,
@@ -547,6 +1415,7 @@ wss.on('connection', (ws, req) => {
           });
           break;
         case 'redirect_execute':
+          if (duoRole === 'guest') break;
           log(`[paef] Executing redirect (appliedDelayMs: ${message.appliedDelayMs || 0}, bypass: ${message.bypass})`);
           // Version-gated execution
           executeRedirect(message, true);
@@ -561,6 +1430,9 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     log('Client disconnected');
+    if (activeDuoRoomId) {
+      handleUnexpectedRoomDisconnect();
+    }
     conversationHistory = [];
   });
 });

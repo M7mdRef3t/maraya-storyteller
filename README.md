@@ -40,8 +40,12 @@ Optional:
 
 - `IMAGEN_MODEL` (default `imagen-3.0-generate-002`)
 - `GEMINI_IMAGE_MODEL` (fallback default `gemini-2.5-flash-image`)
+- `GEMINI_REQUEST_TIMEOUT_MS` (default `15000`)
+- `GEMINI_MAX_RETRIES` (default `2`)
 - `PORT` (defaults to `3002` in local development and `8080` in production/Cloud Run)
 - `LOG_LEVEL` (`info` or `debug`)
+- `PERSISTENCE_BACKEND` (`auto`, `firestore`, or `file`)
+- `DUO_RECONNECT_GRACE_MS` (default `60000`)
 - `ENABLE_PAEF` (`true` by default; set `false` to disable Firestore-backed PAEF explicitly)
 
 Local PAEF note:
@@ -82,6 +86,11 @@ Health:
 
 - `http://localhost:3002/health`
 
+Observability:
+
+- In production builds, client Web Vitals automatically post to `/telemetry/client`.
+- `/health` now returns JSON with Gemini timeout/retry settings plus active persistence backend information.
+
 ### 5. Use judge mode
 
 At launch, set **Narrative Mode** to `Judge Mode (English)` for English UI + English story output.
@@ -107,6 +116,7 @@ Notes:
 - Run both commands from the repository root.
 - The scripts build from the repo root so the multi-stage Docker build can package both `client/` and `server/`.
 - `server/cloudbuild.yaml` expects a Secret Manager secret named `GEMINI_API_KEY`. Use the scripts above if you want a direct one-command deploy without pre-creating that secret.
+- The deploy scripts now also pass `GEMINI_REQUEST_TIMEOUT_MS`, `GEMINI_MAX_RETRIES`, `PERSISTENCE_BACKEND`, and `DUO_RECONNECT_GRACE_MS` to Cloud Run.
 
 ### Terraform (IaC)
 

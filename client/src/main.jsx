@@ -11,8 +11,12 @@ const isDesignSystemPreview = searchParams.get('design-system') === '1';
 const isStagingRuntime =
   window.location.hostname.includes('staging')
   || searchParams.get('staging') === '1';
+const shouldStartVitals =
+  isStagingRuntime
+  || import.meta.env.PROD
+  || Boolean(import.meta.env.VITE_WEB_VITALS_ENDPOINT);
 
-if (isStagingRuntime) {
+if (shouldStartVitals) {
   startWebVitals();
 }
 

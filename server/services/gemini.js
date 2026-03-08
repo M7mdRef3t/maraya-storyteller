@@ -11,6 +11,16 @@ import { log, logDebug } from '../logger.js';
 
 let ai = null;
 
+function getTimeoutMs() {
+  const value = Number(process.env.GEMINI_REQUEST_TIMEOUT_MS || 15000);
+  return Number.isFinite(value) && value > 0 ? value : 15000;
+}
+
+function getMaxRetries() {
+  const value = Number(process.env.GEMINI_MAX_RETRIES || 2);
+  return Number.isFinite(value) && value >= 0 ? value : 2;
+}
+
 export function initGemini(apiKey, client = null) {
   ai = client || new GoogleGenAI({ apiKey });
 }
@@ -106,12 +116,56 @@ function isModelUnavailableError(error) {
   );
 }
 
+export function isRetryableGeminiError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('timeout')
+    || message.includes('timed out')
+    || message.includes('deadline')
+    || message.includes('429')
+    || message.includes('quota')
+    || message.includes('rate limit')
+    || message.includes('temporarily unavailable')
+    || message.includes('service unavailable')
+    || message.includes('internal error')
+    || message.includes('econnreset')
+    || message.includes('fetch failed')
+    || message.includes('network')
+  );
+}
+
+function createTimeoutError(timeoutMs, purpose, model) {
+  const error = new Error(`Gemini ${purpose} timed out after ${timeoutMs}ms on model ${model}`);
+  error.code = 'GEMINI_TIMEOUT';
+  return error;
+}
+
+async function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function runWithTimeout(task, timeoutMs, purpose, model) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      task(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(createTimeoutError(timeoutMs, purpose, model)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function getTextModelCandidates() {
   return uniqueNonEmpty([process.env.GEMINI_TEXT_MODEL || '', ...GEMINI_TEXT_FALLBACK_MODELS]);
 }
 
 export async function generateContentWithModelFallback({ contents, config, purpose }) {
   const models = getTextModelCandidates();
+  const timeoutMs = getTimeoutMs();
+  const maxRetries = getMaxRetries();
 
   if (models.length === 0) {
     throw new Error('No Gemini text models configured');
@@ -122,22 +176,37 @@ export async function generateContentWithModelFallback({ contents, config, purpo
   const errors = [];
 
   for (const model of models) {
-    try {
-      logDebug(`[gemini] ${purpose} attempting with model:`, model);
-      const result = await ai.models.generateContent({
-        model,
-        contents,
-        config,
-      });
-      return result; // Early return on first success
-    } catch (error) {
-      const isUnavailable = isModelUnavailableError(error);
-      const errorType = isUnavailable ? 'unavailable' : 'fatal';
-      log(`[gemini] Model ${errorType} error for ${purpose}: ${model} -> ${error.message}`);
-      errors.push(error);
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        logDebug(`[gemini] ${purpose} attempting with model ${model}, attempt ${attempt + 1}/${maxRetries + 1}`);
+        const result = await runWithTimeout(
+          () => ai.models.generateContent({
+            model,
+            contents,
+            config,
+          }),
+          timeoutMs,
+          purpose,
+          model,
+        );
+        return result;
+      } catch (error) {
+        const isUnavailable = isModelUnavailableError(error);
+        const isRetryable = isRetryableGeminiError(error);
+        const canRetry = isRetryable && attempt < maxRetries;
+        const errorType = isUnavailable ? 'unavailable' : (isRetryable ? 'retryable' : 'fatal');
 
-      // If the error is fatal (auth, bad request), we MIGHT want to break early,
-      // but for robustness against model-specific quirks, we continue to the next model.
+        log(`[gemini] Model ${errorType} error for ${purpose}: ${model} -> ${error.message}`);
+
+        if (canRetry) {
+          const backoffMs = 250 * (attempt + 1);
+          await wait(backoffMs);
+          continue;
+        }
+
+        errors.push(error);
+        break;
+      }
     }
   }
 

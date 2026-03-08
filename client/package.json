@@ -8,6 +8,7 @@
     "test:ci": "vitest --run --pool=threads --maxWorkers=1",
     "a11y": "node scripts/a11y-check.mjs",
     "e2e:smoke": "node scripts/e2e-smoke.mjs",
+    "e2e:batch2": "node scripts/e2e-batch2.mjs",
     "ci:verify": "npm run test:ci && npm run build",
     "dev": "vite",
     "build": "vite build",

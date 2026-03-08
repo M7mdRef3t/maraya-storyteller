@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import BrandMark from '../BrandMark.jsx';
 
-export default function LoadingMirror({ statusText, uiLanguage = 'ar' }) {
+export default function LoadingMirror({
+  statusText,
+  uiLanguage = 'ar',
+  whisperText = '',
+  whisperReflection = '',
+}) {
   const isEn = uiLanguage === 'en';
   const fallbackMessages = useMemo(
     () => (
@@ -13,8 +18,8 @@ export default function LoadingMirror({ statusText, uiLanguage = 'ar' }) {
         ]
         : [
           'المرايا تتشكل...',
-          'نقرأ ما بين السطور...',
-          'نجهز مشهدك القادم...',
+          'نقرأ ما بين الكلمات...',
+          'نجهز إيقاعك السينمائي التالي...',
         ]
     ),
     [isEn],
@@ -41,6 +46,7 @@ export default function LoadingMirror({ statusText, uiLanguage = 'ar' }) {
   const timeoutText = isEn
     ? 'This is taking longer than usual. Please retry if needed.'
     : 'الأمر أطول من المعتاد. حاول مرة أخرى إذا لزم.';
+  const whisperLabel = isEn ? 'The mirror heard' : 'المرآة سمعت';
 
   return (
     <section
@@ -55,6 +61,13 @@ export default function LoadingMirror({ statusText, uiLanguage = 'ar' }) {
         <div className="loading-mirror__orb-reflection" />
       </div>
       <p className="loading-mirror__text">{visibleMessage}</p>
+      {(whisperText || whisperReflection) && (
+        <div className="loading-mirror__echo">
+          <p className="loading-mirror__echo-label">{whisperLabel}</p>
+          {whisperText && <p className="loading-mirror__echo-quote">"{whisperText}"</p>}
+          {whisperReflection && <p className="loading-mirror__echo-text">{whisperReflection}</p>}
+        </div>
+      )}
       {timedOut && (
         <p className="loading-mirror__timeout" role="alert">
           {timeoutText}

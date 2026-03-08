@@ -4,6 +4,38 @@ Maraya is a multimodal AI storytelling agent built for the **Gemini Live Agent C
 
 It turns emotion or space context into a branching cinematic narrative with interleaved text blocks, generated imagery, and adaptive audio mood.
 
+## Live demo
+
+- Production: `https://maraya-storyteller-880073923613.europe-west1.run.app`
+- Judge rail: `https://maraya-storyteller-880073923613.europe-west1.run.app/?judge=1`
+- Health: `https://maraya-storyteller-880073923613.europe-west1.run.app/health`
+
+## What makes Maraya different
+
+- Starts from emotion, not a prompt template: the opening question is emotional, not transactional.
+- Bends the story live: judges can redirect the narrative inside the scene, not only between scenes.
+- Treats storytelling as cinema: generated visuals, adaptive sound, ambient color sync, and motion work as one system.
+- Remembers prior journeys: `Mirror Memory` lets the product feel personal across sessions.
+- Leaves behind shareable artifacts: reel export, poster cover, and square social cover.
+
+## Judge demo rail
+
+Use the production judge rail for the fastest evaluation path:
+
+1. Open `/?judge=1`
+2. Start the guided judge journey
+3. Watch the mirror echo after the whisper
+4. Trigger a live redirect during the story
+5. End on the transformation rail and share artifact
+
+Expected wow moments in under 3 minutes:
+
+- `The mirror understood me`
+- `The feeling became a world`
+- `The story bent live`
+- `The mirror remembered`
+- `I can share what I just felt`
+
 ## Why this can win
 
 - Breaks the text-box pattern with live scene streaming over WebSocket.
@@ -94,6 +126,12 @@ Observability:
 ### 5. Use judge mode
 
 At launch, set **Narrative Mode** to `Judge Mode (English)` for English UI + English story output.
+
+Direct shortcut:
+
+```text
+http://localhost:5180/?judge=1
+```
 
 ## Deployment
 

@@ -8,6 +8,7 @@ import { logDebug, logError } from '../../logger.js';
 export async function generateNarrationAudio({
     text,
     outputMode = 'ar_fusha',
+    mood = 'hope',
     provider = process.env.TTS_PROVIDER || 'google'
 }) {
     const isArabic = outputMode.startsWith('ar');
@@ -31,7 +32,9 @@ export async function generateNarrationAudio({
             return await ttsOpenAI({
                 text,
                 voice: voiceConfig.openai,
-                format: 'mp3'
+                format: 'mp3',
+                mood,
+                outputMode
             });
         }
 

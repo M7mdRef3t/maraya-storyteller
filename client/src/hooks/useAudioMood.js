@@ -29,6 +29,16 @@ export default function useAudioMood() {
     managerRef.current.stop();
   }, []);
 
+  // Adjust volume
+  const setVolume = useCallback((multiplier, duration) => {
+    managerRef.current.setVolume(multiplier, duration);
+  }, []);
+
+  // Play Duo Sync sound
+  const playDuoSyncSound = useCallback(() => {
+    managerRef.current.playDuoSyncSound();
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     const manager = managerRef.current;
@@ -37,5 +47,5 @@ export default function useAudioMood() {
     };
   }, []);
 
-  return { unlock, loadMood, setMood, stop };
+  return { unlock, loadMood, setMood, stop, setVolume, playDuoSyncSound };
 }

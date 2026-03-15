@@ -151,13 +151,41 @@ function getVisualLanguageSection(style) {
 - Color palette: ${style.palette}`;
 }
 
-function getImagePromptRulesSection() {
+function getImagePromptRulesSection(isFollowUp, timeOfDay) {
+  const ghostingRule = isFollowUp
+    ? '- ARCHITECTURAL GHOSTING (CRITICAL): You must subtly hide the `carried_artifact` from the PREVIOUS scene in the background of this new scene\'s `image_prompt`. Also define a new `carried_artifact` for THIS scene.'
+    : '- ARCHITECTURAL GHOSTING: Define a small `carried_artifact` in this scene (like a broken mirror shard, a glowing ember) that can be carried forward to the next scene.';
+
+  const realityBlendRule = timeOfDay
+    ? `- REALITY BLEND (CRITICAL): The user's real-world time is currently ${timeOfDay}. You MUST align the cinematic lighting and atmosphere of the architecture (e.g. sunlight, dusk shadows, night darkness) to match this time of day.`
+    : '';
+
   return `IMAGE PROMPT RULES
 - image_prompt must always be in English.
 - IMPORTANT: Do not include any text, letters, or words inside the image itself.
 - Include architecture style, cinematic lighting, 16:9 composition, and mood.
 - Keep visual continuity across all scenes.
-- If emotion shifts positively, gradually transition toward biophilic visual cues.`;
+- If emotion shifts positively, gradually transition toward biophilic visual cues.
+${realityBlendRule}
+${ghostingRule}`;
+}
+
+function getSymbolicContinuitySection() {
+  return `SYMBOLIC CONTINUITY (MANDATORY)
+- Every scene must include a concise \`carried_artifact\` string.
+- Every scene must include a concise \`symbolic_anchor\` string describing what that artifact means emotionally.
+- Every scene must include a \`ritual_phase\` string and it must be one of: invocation, reflection, becoming.
+- Opening scenes should usually begin in \`invocation\`, middle scenes can live in \`reflection\`, and final resolution scenes should land in \`becoming\`.
+- When prior memory or a space reading is present, reuse it as symbolic vocabulary instead of inventing unrelated motifs.`;
+}
+
+function getSpaceBecomesMythSection() {
+  return `SPACE BECOMES MYTH (MANDATORY)
+- When a mythic room reading or prior mythic echo is present in the user context, treat it as a living force inside the scene rather than background flavor.
+- Let the architecture, lighting, and choice language echo that mythic force directly.
+- Each scene must include a concise \`mythic_echo\` string that feels like the room speaking its archetype back to the user.
+- Choices should feel like invitations offered by that mythic world, not generic menu options.
+- The \`image_prompt\` should visibly carry the same mythic vocabulary so the visual world remembers it too.`;
 }
 
 function getInterleavedOutputFormatSection(mode) {
@@ -177,6 +205,7 @@ function getChoiceRulesSection(mode, allowFinalEnding) {
 
   return `CHOICE RULES
 - Provide exactly 2 choices per non-final scene.
+- IMPORTANT COGNITIVE LOAD RULE: Each choice MUST be extremely short. Maximum 3 to 5 words per choice. Never write a full sentence. Example: "Open the door", "Stay in the dark".
 - ${mode.choiceRules.join('\n- ')}
 - ${endingChoiceRule}`;
 }
@@ -266,6 +295,8 @@ export function buildStorytellerPrompt(
   allowFinalEnding = false,
   redirectCommand = null,
   secretEnding = null,
+  timeOfDay = null,
+  duoAlignment = false,
 ) {
   const style = STYLE_MAP[emotion] || STYLE_MAP.hope;
   const modeKey = normalizeOutputMode(outputMode);
@@ -273,6 +304,10 @@ export function buildStorytellerPrompt(
 
   const secretEndingSection = secretEnding
     ? `\nSECRET ENDING UNLOCKED (HIGHEST PRIORITY)\n- ${secretEnding.instruction}\n- This is a rare achievement. Make the scene extraordinary and unforgettable.\n- Set choices to empty array [] since this is the true ending.`
+    : '';
+
+  const duoAlignmentSection = duoAlignment
+    ? `\nDUO CATHARSIS (CRITICAL)\n- Two minds have aligned in their resolution during this Duo session.\n- The architecture MUST visually represent a bridge, two distinct spaces merging seamlessly into one, or two beams of light colliding.\n- Acknowledge this shared alignment in the narration.`
     : '';
 
   return `You are "Maraya", an immersive creative director and architectural storyteller.
@@ -286,7 +321,11 @@ ${getNarrativeRulesSection(mode)}
 
 ${getVisualLanguageSection(style)}
 
-${getImagePromptRulesSection()}
+${getImagePromptRulesSection(isFollowUp, timeOfDay)}
+
+${getSymbolicContinuitySection()}
+
+${getSpaceBecomesMythSection()}
 
 ${getInterleavedOutputFormatSection(mode)}
 
@@ -296,7 +335,7 @@ ${getAudioMoodSection()}
 
 ${getSceneCountSection(isFollowUp, modeKey, allowFinalEnding)}
 
-${redirectCommand ? getRedirectSection(redirectCommand) : ''}${secretEndingSection}
+${redirectCommand ? getRedirectSection(redirectCommand) : ''}${secretEndingSection}${duoAlignmentSection}
 
 Return JSON only.`;
 }
@@ -312,9 +351,11 @@ Tasks:
 1. Infer the dominant mood from lighting, composition, colors, and spatial arrangement.
 2. Select exactly one emotion from: anxiety, confusion, nostalgia, hope, loneliness, wonder.
 3. Write a short, vivid space reading in ${mode.languageName}.
+4. Write one short mythic reading in ${mode.languageName} that turns the room into a symbolic world the story can reuse later.
+5. Keep both readings emotionally coherent with each other, but make the mythic reading more poetic and archetypal.
 
 Return JSON only:
-{"detected_emotion":"...","space_reading":"..."}`;
+{"detected_emotion":"...","space_reading":"...","mythic_reading":"..."}`;
 }
 
 export { STYLE_MAP, AUDIO_MOODS, OUTPUT_MODE_CONFIG, SECRET_ENDINGS };

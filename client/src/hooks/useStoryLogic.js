@@ -125,12 +125,29 @@ function buildMemoryReflection(snapshot, uiLanguage) {
     uiLanguage,
   );
   const dominantEmotion = toDisplayEmotionLabel(snapshot.signature?.dominantEmotion, uiLanguage);
+  const arcLine = String(snapshot.arcSummary?.recentArc || '').trim();
+  const transformation = snapshot.lastTransformation;
 
   if (isEn) {
+    if (transformation?.fromEmotion && transformation?.toEmotion) {
+      const fromLabel = toDisplayEmotionLabel(transformation.fromEmotion, uiLanguage);
+      const toLabel = toDisplayEmotionLabel(transformation.toEmotion, uiLanguage);
+      return arcLine
+        ? `The mirror remembers you moving from ${fromLabel} to ${toLabel}. ${arcLine}`
+        : `The mirror remembers you moving from ${fromLabel} to ${toLabel}.`;
+    }
     if (latestJourney?.finalEmotion && snapshot.signature?.dominantEmotion && latestJourney.finalEmotion !== snapshot.signature.dominantEmotion) {
       return `The mirror remembers your last journey settling in ${latestEmotion}, even while your deeper signature keeps leaning toward ${dominantEmotion}.`;
     }
     return `The mirror remembers how your last journey settled in ${latestEmotion}.`;
+  }
+
+  if (transformation?.fromEmotion && transformation?.toEmotion) {
+    const fromLabel = toDisplayEmotionLabel(transformation.fromEmotion, uiLanguage);
+    const toLabel = toDisplayEmotionLabel(transformation.toEmotion, uiLanguage);
+    return arcLine
+      ? `تتذكر المرآة أنك انتقلت من ${fromLabel} إلى ${toLabel}. ${arcLine}`
+      : `تتذكر المرآة أنك انتقلت من ${fromLabel} إلى ${toLabel}.`;
   }
 
   if (latestJourney?.finalEmotion && snapshot.signature?.dominantEmotion && latestJourney.finalEmotion !== snapshot.signature.dominantEmotion) {
@@ -228,9 +245,14 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
   const [endingMessage, setEndingMessage] = useState('');
   const [sceneQueue, setSceneQueue] = useState([]);
   const [spaceReading, setSpaceReading] = useState(null);
+  const [spaceMyth, setSpaceMyth] = useState(null);
   const [storyMode, setStoryMode] = useState(() => (judgeMode ? 'judge_en' : readStoredMode()));
   const [musicEnabled, setMusicEnabled] = useState(() => readStoredBoolean('maraya_music_enabled', true));
+  const musicEnabledRef = useRef(musicEnabled);
+  musicEnabledRef.current = musicEnabled;
   const [voiceEnabled, setVoiceEnabled] = useState(() => readStoredBoolean('maraya_voice_enabled', true));
+  const [biometricsEnabled, setBiometricsEnabled] = useState(() => readStoredBoolean('maraya_biometrics', false));
+  const [spatialModeEnabled, setSpatialModeEnabled] = useState(() => readStoredBoolean('maraya_spatial_mode', false));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [narrationSpeed, setNarrationSpeed] = useState(() => readStoredNumber('maraya_narration_speed', 45));
   const [lastAcceptedVersion, setLastAcceptedVersion] = useState(0);
@@ -242,6 +264,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
   const [secretEndingKey, setSecretEndingKey] = useState(null);
   const [mirrorMemory, setMirrorMemory] = useState(null);
   const [storyMoments, setStoryMoments] = useState([]);
+  const [directorMove, setDirectorMove] = useState(null);
   const [lastWhisperText, setLastWhisperText] = useState('');
   const [whisperInterpretation, setWhisperInterpretation] = useState(null);
   const [duoJoinCode, setDuoJoinCode] = useState('');
@@ -265,7 +288,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
   const canRestartStory = !duoIsActive || duoState.role === 'host';
 
   const { isConnected, error: wsError, connect, sendMessage, on, off } = useWebSocket({ query: wsQuery });
-  const { unlock: unlockAudio, loadMood, setMood, stop: stopAudio } = useAudioMood();
+  const { unlock: unlockAudio, loadMood, setMood, stop: stopAudio, setVolume: setMusicVolume, playDuoSyncSound } = useAudioMood();
   const {
     isSupported: voiceSupported,
     warmup: warmupVoice,
@@ -284,12 +307,14 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     setTranscript([]);
     setEndingMessage('');
     setSpaceReading(null);
+    setSpaceMyth(null);
     setEmotionJourney([]);
     setSceneImageData(null);
     setSceneImageMime(null);
     setSecretEndingKey(null);
     setStatusText('');
     setStoryMoments([]);
+    setDirectorMove(null);
     setLastWhisperText('');
     setWhisperInterpretation(null);
     stopAudio();
@@ -336,11 +361,14 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     setCurrentScene(null);
     setSceneQueue([]);
     setTranscript([]);
+    setSpaceReading(null);
     setEmotionJourney(seedJourney);
     setSceneImageData(null);
     setSceneImageMime(null);
+    setSpaceMyth(null);
     setSecretEndingKey(null);
     setStoryMoments([]);
+    setDirectorMove(null);
     setWhisperInterpretation(null);
     if (canvasRef.current) {
       canvasRef.current.clearImage();
@@ -424,6 +452,14 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
   useEffect(() => {
     localStorage.setItem('maraya_story_mode', storyMode);
   }, [storyMode]);
+
+  useEffect(() => {
+    localStorage.setItem('maraya_biometrics', biometricsEnabled ? '1' : '0');
+  }, [biometricsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('maraya_spatial_mode', spatialModeEnabled ? '1' : '0');
+  }, [spatialModeEnabled]);
 
   useEffect(() => {
     if (!judgeMode) return;
@@ -521,14 +557,23 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     });
 
     on('duo_vote_update', (msg) => {
-      setDuoState((prev) => ({
-        ...prev,
-        votes: msg.votes || [],
-        mismatch: Boolean(msg.mismatch),
-        readyCount: msg.readyCount || 0,
-        requiredVotes: msg.requiredVotes || 2,
-        selectedChoiceIndex: msg.selfVoteIndex ?? prev.selectedChoiceIndex,
-      }));
+      setDuoState((prev) => {
+        const isSyncing = !msg.mismatch && msg.readyCount === (msg.requiredVotes || 2);
+        const wasAlreadySyncing = !prev.mismatch && prev.readyCount === (prev.requiredVotes || 2);
+
+        if (isSyncing && !wasAlreadySyncing && musicEnabledRef.current) {
+          playDuoSyncSound();
+        }
+
+        return {
+          ...prev,
+          votes: msg.votes || [],
+          mismatch: Boolean(msg.mismatch),
+          readyCount: msg.readyCount || 0,
+          requiredVotes: msg.requiredVotes || 2,
+          selectedChoiceIndex: msg.selfVoteIndex ?? prev.selectedChoiceIndex,
+        };
+      });
     });
 
     on('duo_closed', (msg) => {
@@ -558,6 +603,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
         return;
       }
       setSpaceReading(msg.reading);
+      setSpaceMyth(msg.mythicReading || msg.reading || null);
     });
 
     on('scene', (msg) => {
@@ -570,19 +616,33 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
 
       setLastAcceptedVersion(msg.v);
       setImageStale(true);
-      imageFallbackTimerRef.current = setTimeout(() => {}, 900);
+      imageFallbackTimerRef.current = setTimeout(() => { }, 900);
 
       const scene = msg.scene;
       if (duoState.role !== 'solo' && appState !== APP_STATES.LOADING) {
         setAppState(APP_STATES.LOADING);
       }
       setSceneQueue((prev) => [...prev, scene]);
+      setDirectorMove((prev) => (prev
+        ? {
+          ...prev,
+          phase: prev.phase === 'executing' || prev.phase === 'acknowledged' ? 'arrived' : prev.phase,
+          ritualPhase: scene.ritual_phase || prev.ritualPhase || '',
+          symbolicAnchor: scene.symbolic_anchor || prev.symbolicAnchor || '',
+          carriedArtifact: scene.carried_artifact || prev.carriedArtifact || '',
+          arrivedAt: Date.now(),
+        }
+        : prev));
       setStoryMoments((prev) => [...prev, {
         sceneId: scene.scene_id,
         narration: scene.narration_ar,
         interleavedBlocks: scene.interleaved_blocks,
         audioMood: scene.audio_mood,
         storySceneNumber: scene.story_scene_number,
+        carriedArtifact: scene.carried_artifact || '',
+        symbolicAnchor: scene.symbolic_anchor || '',
+        ritualPhase: scene.ritual_phase || '',
+        mythicEcho: scene.mythic_echo || '',
         imageData: null,
         imageMimeType: null,
       }]);
@@ -657,7 +717,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
         return;
       }
       if (!voiceEnabled) return;
-      queueAudioChunk({ ...chunk, version: chunk.v }, () => {});
+      queueAudioChunk({ ...chunk, version: chunk.v }, () => { });
     });
 
     on('intervention_plan', (msg) => {
@@ -675,6 +735,11 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
       if (plan.delayMs > 0 && plan.style === 'micro_text') {
         setStatusText(plan.message || (uiLanguage === 'ar' ? 'خذ نفساً عميقاً..' : 'Take a breath...'));
       }
+      setDirectorMove((prev) => (prev ? {
+        ...prev,
+        phase: plan.delayMs > 0 ? 'guiding' : 'queued',
+        guidance: plan.message || '',
+      } : prev));
 
       if (interventionDelayTimerRef.current) clearTimeout(interventionDelayTimerRef.current);
 
@@ -691,6 +756,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
       if (msg.v < lastAcceptedVersion) return;
       setLastAcceptedVersion(msg.v);
       stopVoice();
+      setDirectorMove((prev) => (prev ? { ...prev, phase: 'acknowledged', acknowledgedAt: Date.now() } : prev));
       hapticRedirect();
     });
 
@@ -812,12 +878,13 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     speakVoice(block.text_ar, { lang: getVoiceLang(storyMode) });
   }, [speakVoice, storyMode, voiceEnabled, voiceSupported]);
 
-  const handleSelectEmotion = useCallback((emotionId) => {
+  const handleSelectEmotion = useCallback((emotionId, customContext = '') => {
     if (!canStartStory) return;
 
     setLastWhisperText('');
     prepareStoryStart(uiText.loadingStory, [emotionId]);
-    sendMessage('start_story', { emotion: emotionId, output_mode: storyMode });
+    const localHour = new Date().getHours();
+    sendMessage('start_story', { emotion: emotionId, custom_context: customContext, output_mode: storyMode, localHour });
   }, [canStartStory, prepareStoryStart, sendMessage, storyMode, uiText.loadingStory]);
 
   const handleUploadSpace = useCallback((base64, mimeType) => {
@@ -825,7 +892,8 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
 
     setLastWhisperText('');
     prepareStoryStart(uiText.analyzingSpace, []);
-    sendMessage('start_story', { image: base64, mimeType, output_mode: storyMode });
+    const localHour = new Date().getHours();
+    sendMessage('start_story', { image: base64, mimeType, output_mode: storyMode, localHour });
   }, [canStartStory, prepareStoryStart, sendMessage, storyMode, uiText.analyzingSpace]);
 
   const handleChoose = useCallback((choice, choiceIndex = 0) => {
@@ -872,6 +940,12 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     setStatusText(uiLanguage === 'ar' ? 'يتم تعديل المسار...' : 'Re-planning...');
     stopVoice();
     pendingIntentRef.current = null;
+    setDirectorMove((prev) => (prev ? {
+      ...prev,
+      phase: 'executing',
+      appliedDelayMs,
+      bypass,
+    } : prev));
 
     sendMessage('redirect_execute', {
       sceneId: intent.sceneId,
@@ -890,6 +964,16 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     if (duoIsActive && duoState.role !== 'host') return;
 
     setStatusText(uiLanguage === 'ar' ? 'تجهيز القرار...' : 'Preparing input...');
+    setDirectorMove({
+      command,
+      intensity,
+      phase: 'queued',
+      guidance: '',
+      ritualPhase: currentScene.ritual_phase || '',
+      symbolicAnchor: currentScene.symbolic_anchor || '',
+      carriedArtifact: currentScene.carried_artifact || '',
+      requestedAt: Date.now(),
+    });
 
     pendingIntentRef.current = {
       sceneId: currentScene.scene_id,
@@ -1005,6 +1089,14 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     });
   }, [currentMood, preloadMoods, setMood, stopAudio, unlockAudio]);
 
+  const handleToggleBiometrics = useCallback(() => {
+    setBiometricsEnabled((prev) => !prev);
+  }, []);
+
+  const handleToggleSpatialMode = useCallback(() => {
+    setSpatialModeEnabled((prev) => !prev);
+  }, []);
+
   const handleOpenSettings = useCallback(() => {
     setSettingsOpen(true);
   }, []);
@@ -1019,11 +1111,15 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     localStorage.removeItem('maraya_narration_speed');
     localStorage.removeItem('maraya_story_mode');
     localStorage.removeItem('maraya_settings_detent');
+    localStorage.removeItem('maraya_biometrics');
+    localStorage.removeItem('maraya_spatial_mode');
 
     setMusicEnabled(true);
     setVoiceEnabled(voiceSupported);
     setNarrationSpeed(45);
     setStoryMode('judge_en');
+    setBiometricsEnabled(false);
+    setSpatialModeEnabled(false);
   }, [voiceSupported]);
 
   const handleDuoNameChange = useCallback((name) => {
@@ -1097,9 +1193,12 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     currentMood,
     endingMessage,
     spaceReading,
+    spaceMyth,
     storyMode,
     musicEnabled,
     voiceEnabled,
+    biometricsEnabled,
+    spatialModeEnabled,
     narrationSpeed,
     settingsOpen,
     voiceSupported,
@@ -1117,6 +1216,7 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     secretEndingKey,
     mirrorMemory,
     storyMoments,
+    directorMove,
     lastWhisperText,
     whisperInterpretation,
     whisperInput,
@@ -1138,6 +1238,8 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     handleModeChange,
     handleToggleVoice,
     handleToggleMusic,
+    handleToggleBiometrics,
+    handleToggleSpatialMode,
     handleStartJudgeJourney,
     setNarrationSpeed,
     handleOpenSettings,
@@ -1149,5 +1251,6 @@ export default function useStoryLogic(canvasRef, { judgeMode = false } = {}) {
     handleJoinDuo,
     handleLeaveDuo,
     dismissToast,
+    setMusicVolume,
   };
 }

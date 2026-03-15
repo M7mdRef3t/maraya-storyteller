@@ -6,7 +6,7 @@ import React, { useCallback, useState } from 'react';
  * the Web Share API (or fallback download).
  */
 
-function drawCardToCanvas(canvas, { narration, emotionColor, sceneNumber, imageData, mimeType }) {
+function drawCardToCanvas(canvas, { narration, emotionColor, sceneNumber, imageData, mimeType, isCatharsis }) {
   const W = 1080;
   const H = 1350;
   canvas.width = W;
@@ -33,18 +33,19 @@ function drawCardToCanvas(canvas, { narration, emotionColor, sceneNumber, imageD
       ctx.fillStyle = emotionColor || '#ffd700';
       ctx.fillRect(80, H - 400, 4, 120);
 
-      // Scene number
+      // Scene number or Catharsis Label
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.font = '600 14px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`SCENE ${sceneNumber || ''}`, 100, H - 420);
+      ctx.fillText(isCatharsis ? 'THE FINAL CATHARSIS' : `SCENE ${sceneNumber || ''}`, 100, H - 420);
 
       // Narration text with word wrap
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '500 32px sans-serif';
-      ctx.textAlign = 'left';
+      ctx.fillStyle = isCatharsis ? emotionColor : '#ffffff';
+      ctx.font = isCatharsis ? '700 38px sans-serif' : '500 32px sans-serif';
+      ctx.textAlign = isCatharsis ? 'center' : 'left';
       const maxWidth = W - 200;
-      const lineHeight = 48;
+      const lineHeight = isCatharsis ? 56 : 48;
+      const textX = isCatharsis ? W / 2 : 100;
       const words = (narration || '').split(' ');
       let line = '';
       let y = H - 360;
@@ -53,7 +54,7 @@ function drawCardToCanvas(canvas, { narration, emotionColor, sceneNumber, imageD
         const testLine = line + word + ' ';
         const metrics = ctx.measureText(testLine);
         if (metrics.width > maxWidth && line) {
-          ctx.fillText(line.trim(), 100, y);
+          ctx.fillText(line.trim(), textX, y);
           line = word + ' ';
           y += lineHeight;
           if (y > H - 100) break;
@@ -62,7 +63,7 @@ function drawCardToCanvas(canvas, { narration, emotionColor, sceneNumber, imageD
         }
       }
       if (line.trim() && y <= H - 100) {
-        ctx.fillText(line.trim(), 100, y);
+        ctx.fillText(line.trim(), textX, y);
       }
 
       // Maraya branding
@@ -130,6 +131,7 @@ export default function SceneCardShare({
   imageData,
   imageMimeType,
   uiLanguage = 'en',
+  isCatharsis = false,
 }) {
   const [sharing, setSharing] = useState(false);
 
@@ -145,10 +147,12 @@ export default function SceneCardShare({
         sceneNumber,
         imageData,
         mimeType: imageMimeType,
+        isCatharsis,
       });
 
       const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
-      const file = new File([blob], `maraya-scene-${sceneNumber || 1}.png`, { type: 'image/png' });
+      const filename = isCatharsis ? 'maraya-catharsis.png' : `maraya-scene-${sceneNumber || 1}.png`;
+      const file = new File([blob], filename, { type: 'image/png' });
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
@@ -176,7 +180,9 @@ export default function SceneCardShare({
 
   if (!scene) return null;
 
-  const label = uiLanguage === 'en' ? 'Share Scene' : 'شارك المشهد';
+  const label = isCatharsis
+    ? (uiLanguage === 'en' ? 'Export Catharsis Map' : 'احفظ خريطة المشاعر')
+    : (uiLanguage === 'en' ? 'Share Scene' : 'شارك المشهد');
 
   return (
     <button

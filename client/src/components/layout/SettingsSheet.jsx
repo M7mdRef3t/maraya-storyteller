@@ -36,6 +36,10 @@ export default function SettingsSheet({
   onToggleVoice,
   narrationSpeed,
   onNarrationSpeedChange,
+  biometricsEnabled,
+  onToggleBiometrics,
+  spatialModeEnabled,
+  onToggleSpatialMode,
   onClose,
   onReset,
 }) {
@@ -55,6 +59,8 @@ export default function SettingsSheet({
     voice: isEn ? 'Narration Voice' : 'صوت الراوية',
     speed: isEn ? 'Narration Speed' : 'سرعة السرد',
     speedHint: isEn ? 'Live preview affects upcoming narration blocks.' : 'المعاينة الحية تؤثر على الكتل السردية القادمة.',
+    biometrics: isEn ? 'Biometric Sync (HealthKit/Oura)' : 'المزامنة الحيوية (HealthKit/Oura)',
+    spatial: isEn ? 'Spatial Computing (VisionOS)' : 'العرض الشمولي للواقع المختلط',
     close: isEn ? 'Close' : 'إغلاق',
     slow: isEn ? 'Slow' : 'أبطأ',
     fast: isEn ? 'Fast' : 'أسرع',
@@ -179,6 +185,32 @@ export default function SettingsSheet({
             onClick={onToggleVoice}
           >
             {voiceEnabled ? t.on : t.off}
+          </button>
+        </div>
+
+        <div className="settings-sheet__group" role="group" aria-label={t.biometrics}>
+          <span className="settings-sheet__label">{t.biometrics}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={biometricsEnabled}
+            className={`settings-sheet__switch ${biometricsEnabled ? 'settings-sheet__switch--on' : ''}`}
+            onClick={onToggleBiometrics}
+          >
+            {biometricsEnabled ? t.on : t.off}
+          </button>
+        </div>
+
+        <div className="settings-sheet__group" role="group" aria-label={t.spatial}>
+          <span className="settings-sheet__label">{t.spatial}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={spatialModeEnabled}
+            className={`settings-sheet__switch ${spatialModeEnabled ? 'settings-sheet__switch--on' : ''}`}
+            onClick={onToggleSpatialMode}
+          >
+            {spatialModeEnabled ? t.on : t.off}
           </button>
         </div>
 

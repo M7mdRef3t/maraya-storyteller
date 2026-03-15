@@ -52,7 +52,7 @@ function buildNarration({ outputMode, emotion, stage, choiceText, redirectComman
 
   if (stage === 'redirect') {
     return {
-      narration: `تستعيد المرايا توازنها وتميل نحو "${redirectCommand || 'مسار جديد'}". يعاد تشكيل المشهد من غير أن تنكسر الرحلة.`,
+      narration: `تستعيد مرايا توازنها وتميل نحو "${redirectCommand || 'مسار جديد'}". يعاد تشكيل المشهد من غير أن تنكسر الرحلة.`,
       visual: 'يتبدل الضوء دفعة واحدة، كأن الجدران وافقت على بداية أخرى.',
       reflection: 'حتى المسار المعاد توجيهه يستطيع أن يصل إلى معنى صادق.',
     };
@@ -73,6 +73,36 @@ function buildNarration({ outputMode, emotion, stage, choiceText, redirectComman
   };
 }
 
+function buildMythicEcho({ outputMode, mythicReading = '', emotion = 'hope', stage = 'opening' }) {
+  const normalizedMythic = String(mythicReading || '').trim();
+  if (normalizedMythic) return normalizedMythic;
+
+  if (isEnglishMode(outputMode)) {
+    if (stage === 'redirect') {
+      return 'The room changes its legend without letting go of your thread.';
+    }
+    if (stage === 'continue') {
+      return `The architecture keeps reshaping ${emotion} into a path you can still enter.`;
+    }
+    return 'The room opens like a threshold that already knows your name.';
+  }
+
+  if (stage === 'redirect') {
+    return 'يبدّل المكان أسطورته من غير أن يقطع خيطك معه.';
+  }
+  if (stage === 'continue') {
+    return `تواصل العمارة تشكيل ${emotion} في هيئة طريق ما زال يفتح لك بابه.`;
+  }
+  return 'يفتح المكان نفسه كعتبة تعرف اسمك قبل أن تعبرها.';
+}
+
+function getFallbackRitualPhase(stage, allowFinalEnding) {
+  if (allowFinalEnding) return 'becoming';
+  if (stage === 'opening') return 'invocation';
+  if (stage === 'redirect') return 'becoming';
+  return 'reflection';
+}
+
 export function buildFallbackScenes({
   emotion = 'hope',
   outputMode = 'judge_en',
@@ -81,6 +111,7 @@ export function buildFallbackScenes({
   sceneNumber = 1,
   allowFinalEnding = false,
   redirectCommand = '',
+  mythicReading = '',
 } = {}) {
   const blockText = buildNarration({
     outputMode,
@@ -89,20 +120,29 @@ export function buildFallbackScenes({
     choiceText,
     redirectCommand,
   });
-
+  const mythicEcho = buildMythicEcho({
+    outputMode,
+    mythicReading,
+    emotion,
+    stage,
+  });
+  const narration = `${blockText.narration} ${mythicEcho}`.trim();
   const isFinal = Boolean(allowFinalEnding);
 
   return [{
     scene_id: `fallback_scene_${sceneNumber}`,
-    narration_ar: blockText.narration,
-    image_prompt: `cinematic interior architecture, resilient emotional atmosphere, ${emotion} mood, warm recovery lighting, 16:9 composition`,
+    narration_ar: narration,
+    image_prompt: `cinematic interior architecture, resilient emotional atmosphere, ${emotion} mood, warm recovery lighting, mythic continuity, ${mythicEcho}, 16:9 composition`,
     audio_mood: EMOTION_TO_AUDIO[emotion] || 'ambient_calm',
+    carried_artifact: isEnglishMode(outputMode) ? 'a mirrored ember' : 'جمرة مرآوية',
+    symbolic_anchor: isEnglishMode(outputMode) ? 'a small proof that the shift is still alive' : 'أثر صغير يدل على أن التحول ما زال حيًا',
+    ritual_phase: getFallbackRitualPhase(stage, allowFinalEnding),
+    mythic_echo: mythicEcho,
     interleaved_blocks: [
-      { kind: 'narration', text_ar: blockText.narration },
+      { kind: 'narration', text_ar: narration },
       { kind: 'visual', text_ar: blockText.visual },
       { kind: 'reflection', text_ar: blockText.reflection },
     ],
     choices: isFinal ? [] : defaultChoices(outputMode),
   }];
 }
-

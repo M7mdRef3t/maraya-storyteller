@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildJourneyFileStem } from './StoryReelExport.jsx';
+import { buildJourneyFileStem, buildShareMeta } from './StoryReelExport.jsx';
 
 describe('buildJourneyFileStem', () => {
   it('builds a readable per-journey filename stem', () => {
@@ -16,5 +16,23 @@ describe('buildJourneyFileStem', () => {
     );
 
     vi.useRealTimers();
+  });
+});
+
+describe('buildShareMeta', () => {
+  it('builds proof-first share metadata and a copy-ready caption', () => {
+    const meta = buildShareMeta({
+      endingMessage: 'The threshold opened and stayed open.',
+      emotionJourney: ['confusion', 'hope'],
+      uiLanguage: 'en',
+      spaceMyth: 'A threshold that remembers who crosses it.',
+    });
+
+    expect(meta.title).toBe('From confusion to hope | Maraya');
+    expect(meta.headline).toBe('What entered as confusion left as hope.');
+    expect(meta.reelTitle).toBe('What entered as confusion left as hope.');
+    expect(meta.caption).toContain('From confusion to hope');
+    expect(meta.caption).toContain('A threshold that remembers who crosses it.');
+    expect(meta.captionActionLabel).toBe('Copy caption');
   });
 });

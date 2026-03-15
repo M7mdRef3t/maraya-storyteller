@@ -4,30 +4,30 @@ import BrandMark from './BrandMark.jsx';
 const SLIDES = {
   en: [
     {
-      title: 'Maraya listens to what you do not say.',
-      body: 'Choose your emotion or upload your space. Maraya shapes the rest.',
+      title: 'Begin with what you carry, not what you type.',
+      body: 'Maraya opens as a ritual. A feeling, a whisper, or a room is enough to start.',
     },
     {
-      title: 'Every emotion becomes a world.',
-      body: 'A branching narrative forms around your choices. No two journeys are alike.',
+      title: 'The mirror turns emotion into cinema.',
+      body: 'Each step reframes the feeling as image, narration, and choice until the shape becomes visible.',
     },
     {
-      title: 'The narrator speaks with you.',
-      body: 'Enable voice to experience your story as an intimate cinematic performance.',
+      title: 'You leave with proof, not just a scene.',
+      body: 'Every journey closes with a transformation you can revisit, remember, and carry forward.',
     },
   ],
   ar: [
     {
-      title: 'مرايا تسمع ما لا تقوله',
-      body: 'اختر مشاعرك أو ارفع صورة مكانك، ودع مرايا تكمل الرحلة.',
+      title: 'ابدأ بما تحمله داخلك، لا بما تكتبه.',
+      body: 'تبدأ مرايا كطقس شخصي. يكفي شعور أو همسة أو صورة مكان لتبدأ الرحلة.',
     },
     {
-      title: 'كل مشاعر تصبح عالمًا',
-      body: 'قصة متفرعة تتشكل من اختياراتك، ولا تتكرر بنفس الطريقة.',
+      title: 'تحوّل المرآة الشعور إلى سينما.',
+      body: 'كل خطوة تعيد تشكيل الإحساس إلى صورة وسرد واختيار حتى يظهر شكل التحول بوضوح.',
     },
     {
-      title: 'الراوية تتكلم',
-      body: 'فعّل الصوت لتعيش التجربة القصصية بحواسك كاملة.',
+      title: 'تغادر ومعك أثر واضح، لا مشهد عابر.',
+      body: 'كل رحلة تنتهي بدليل تحول يمكنك أن تتذكره وتعود إليه وتحمله معك.',
     },
   ],
 };
@@ -65,6 +65,9 @@ export default function OnboardingCarousel({
       </div>
 
       <div className="onboarding__content glass-card">
+        <p className="onboarding__eyebrow">
+          {isEn ? `Ritual 0${index + 1}` : `الطقس 0${index + 1}`}
+        </p>
         <h2 className="onboarding__title">{slide.title}</h2>
         <p className="onboarding__body">{slide.body}</p>
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildStorytellerPrompt } from './storyteller.js';
+import { buildSpaceAnalysisPrompt, buildStorytellerPrompt } from './storyteller.js';
 
 test('buildStorytellerPrompt defaults', () => {
   const prompt = buildStorytellerPrompt('hope');
@@ -9,6 +9,11 @@ test('buildStorytellerPrompt defaults', () => {
   assert.match(prompt, /Generate exactly 1 opening scene/);
   assert.match(prompt, /All scenes in this response are non-final/);
   assert.match(prompt, /Emotion \(EN\): Hope/);
+  assert.match(prompt, /SYMBOLIC CONTINUITY/);
+  assert.match(prompt, /SPACE BECOMES MYTH/);
+  assert.match(prompt, /symbolic_anchor/);
+  assert.match(prompt, /ritual_phase/);
+  assert.match(prompt, /mythic_echo/);
 });
 
 test('buildStorytellerPrompt with isFollowUp=true', () => {
@@ -36,4 +41,12 @@ test('buildStorytellerPrompt with emotion=anxiety', () => {
   
   assert.match(prompt, /Emotion \(EN\): Anxiety/);
   assert.match(prompt, /Brutalist/);
+});
+
+test('buildSpaceAnalysisPrompt requests mythic room reading continuity', () => {
+  const prompt = buildSpaceAnalysisPrompt('judge_en');
+
+  assert.match(prompt, /mythic reading/i);
+  assert.match(prompt, /symbolic world/i);
+  assert.match(prompt, /"mythic_reading"/);
 });

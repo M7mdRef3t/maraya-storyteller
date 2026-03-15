@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildTransformationSummary } from '../../utils/transformation.js';
 
 const SCENE_DURATION_MS = 2200;
 const OUTRO_DURATION_MS = 1800;
@@ -357,6 +358,32 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+async function copyTextToClipboard(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  if (typeof document === 'undefined') {
+    throw new Error('Clipboard is not available in this environment.');
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'absolute';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand?.('copy');
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error('Clipboard is not available in this browser.');
+  }
+}
+
 async function buildStoryReel(moments, shareMeta, endingMessage) {
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH;
@@ -457,21 +484,6 @@ async function buildStoryReel(moments, shareMeta, endingMessage) {
   return { blob, totalDurationSec };
 }
 
-function toDisplayEmotion(value, uiLanguage) {
-  const normalized = String(value || '').trim().toLowerCase();
-  const labels = {
-    anxiety: { en: 'anxiety', ar: 'القلق' },
-    confusion: { en: 'confusion', ar: 'الحيرة' },
-    nostalgia: { en: 'nostalgia', ar: 'الحنين' },
-    hope: { en: 'hope', ar: 'الأمل' },
-    loneliness: { en: 'loneliness', ar: 'الوحدة' },
-    wonder: { en: 'wonder', ar: 'الدهشة' },
-  };
-  const match = labels[normalized];
-  if (!match) return normalized || (uiLanguage === 'en' ? 'feeling' : 'إحساس');
-  return uiLanguage === 'en' ? match.en : match.ar;
-}
-
 function toFilenameEmotion(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return ['anxiety', 'confusion', 'nostalgia', 'hope', 'loneliness', 'wonder'].includes(normalized)
@@ -507,53 +519,88 @@ export function buildJourneyFileStem({ emotionJourney, endingMessage }) {
   return `maraya-${firstEmotion}-to-${lastEmotion}-${summary}-${stamp}`;
 }
 
-function buildShareMeta({ endingMessage, emotionJourney, uiLanguage }) {
-  const firstEmotion = emotionJourney?.[0];
-  const lastEmotion = emotionJourney?.[emotionJourney.length - 1];
-  const fromEmotion = toDisplayEmotion(firstEmotion, uiLanguage);
-  const toEmotion = toDisplayEmotion(lastEmotion, uiLanguage);
-  const transformationLine = uiLanguage === 'en'
-    ? `From ${fromEmotion} to ${toEmotion}`
-    : `من ${fromEmotion} إلى ${toEmotion}`;
+function buildShareCaption({ summary, endingMessage, uiLanguage }) {
+  const closingLine = uiLanguage === 'en'
+    ? 'Made in Maraya.'
+    : 'أثر طقسي من مرايا.';
+  const lines = [
+    summary.proofLine,
+    summary.transformationLine,
+    summary.mythicLine,
+    String(endingMessage || '').trim(),
+    closingLine,
+  ];
+
+  return [...new Set(lines.filter(Boolean))].slice(0, 5).join('\n');
+}
+
+export function buildShareMeta({
+  endingMessage,
+  emotionJourney,
+  uiLanguage,
+  spaceReading = '',
+  spaceMyth = '',
+  storyMoments = [],
+}) {
+  const summary = buildTransformationSummary({
+    emotionJourney,
+    endingMessage,
+    spaceReading,
+    spaceMyth,
+    storyMoments,
+    uiLanguage,
+  });
+  const fromEmotion = summary.fromLabel;
+  const toEmotion = summary.toLabel;
+  const transformationLine = summary.transformationLine;
+  const caption = buildShareCaption({
+    summary,
+    endingMessage,
+    uiLanguage,
+  });
 
   if (uiLanguage === 'en') {
     return {
-      title: 'Maraya Story Reel',
-      text: endingMessage
-        ? `I turned ${fromEmotion} into ${toEmotion} in Maraya. ${endingMessage}`
-        : `I turned ${fromEmotion} into ${toEmotion} in Maraya.`,
+      title: `${transformationLine} | Maraya`,
+      text: caption,
       sharedMessage: 'Story reel and poster shared.',
       savedMessage: 'Story reel and poster downloaded. Share them anywhere.',
       unsupportedMessage: 'This browser cannot share both files directly, so the reel and poster were downloaded instead.',
       partialShareMessage: 'Story reel shared. Poster downloaded for your thumbnail or post cover.',
-      label: 'Share this feeling as a reel',
+      label: 'Share proof as a reel',
       exportingLabel: 'Preparing your reel and poster...',
-      helper: 'Creates a short reel plus a poster cover and opens the share sheet when supported.',
+      helper: 'Creates a short reel plus a proof-forward poster and opens the share sheet when supported.',
       posterLabel: 'Share poster cover',
       posterExportingLabel: 'Preparing your poster cover...',
-      posterHelper: 'Keeps a clean vertical cover ready for stories, posts, and judge recaps.',
+      posterHelper: 'Keeps a clean proof poster ready for stories, posts, and judge recaps.',
       posterSharedMessage: 'Poster cover shared.',
       posterSavedMessage: 'Poster cover downloaded.',
       posterUnsupportedMessage: 'This browser cannot share the poster directly, so it was downloaded instead.',
       socialLabel: 'Share square social cover',
       socialExportingLabel: 'Preparing your square social cover...',
-      socialHelper: 'Creates a square social card for X, LinkedIn, and feed previews.',
+      socialHelper: 'Creates a square proof card for X, LinkedIn, and feed previews.',
       socialSharedMessage: 'Square social cover shared.',
       socialSavedMessage: 'Square social cover downloaded.',
       socialUnsupportedMessage: 'This browser cannot share the square social cover directly, so it was downloaded instead.',
       unsupportedBrowserMessage: 'This browser cannot record the reel export.',
       fallbackError: 'Export failed.',
       eyebrow: 'Share The Shift',
-      headline: 'This turn deserves to leave the app.',
-      prompt: 'Turn this feeling into a reel before the glow fades.',
+      headline: summary.proofLine,
+      prompt: 'Carry this proof of transformation beyond the ritual.',
       transformationLine,
+      caption,
+      captionLabel: 'Share Caption',
+      captionHelper: 'Copy a proof-first caption that is ready to paste into your post, story, or pitch deck.',
+      captionActionLabel: 'Copy caption',
+      captionCopiedMessage: 'Share caption copied.',
+      captionUnsupportedMessage: 'Copy is not available in this browser.',
       reelBadge: 'MARAYA TRANSFORMATION',
-      reelTitle: 'This feeling changed shape.',
-      reelPrompt: 'Share it while the feeling is still warm.',
+      reelTitle: summary.proofLine,
+      reelPrompt: 'Share the shift while it is still warm.',
       posterBadge: 'POSTER COVER',
-      posterPrompt: 'Keep a poster-sized memory of the transformation.',
+      posterPrompt: 'Keep a poster-sized proof of the transformation.',
       socialBadge: 'SOCIAL COVER',
-      socialTitle: 'Carry the shift into the feed.',
+      socialTitle: summary.proofLine,
       socialPrompt: 'Sized for the share preview, not just the story rail.',
       sceneWord: 'Scene',
     };
@@ -588,6 +635,16 @@ function buildShareMeta({ endingMessage, emotionJourney, uiLanguage }) {
     reelPrompt: 'شاركه ما دام الأثر دافئاً.',
     posterBadge: 'غلاف الملصق',
     posterPrompt: 'احتفظ بصورة عمودية جاهزة لذكرى هذا التحوّل.',
+    ...{ title: `ريل مرايا | ${transformationLine}` },
+    ...{
+      text: caption,
+      caption,
+      captionLabel: 'نص المشاركة',
+      captionHelper: 'انسخ نصًا جاهزًا للنشر يقدّم التحول أولًا في المنشور أو الستوري أو العرض.',
+      captionActionLabel: 'انسخ النص',
+      captionCopiedMessage: 'تم نسخ نص المشاركة.',
+      captionUnsupportedMessage: 'النسخ غير متاح في هذا المتصفح.',
+    },
     sceneWord: 'المشهد',
   };
 }
@@ -597,6 +654,8 @@ export default function StoryReelExport({
   uiLanguage = 'en',
   endingMessage = '',
   emotionJourney = [],
+  spaceReading = '',
+  spaceMyth = '',
 }) {
   const [exportingKind, setExportingKind] = useState(null);
   const [message, setMessage] = useState('');
@@ -611,10 +670,84 @@ export default function StoryReelExport({
       && typeof HTMLCanvasElement.prototype.captureStream === 'function',
     [],
   );
-  const shareMeta = useMemo(
-    () => buildShareMeta({ endingMessage, emotionJourney, uiLanguage }),
-    [emotionJourney, endingMessage, uiLanguage],
+  const rawShareMeta = useMemo(
+    () => buildShareMeta({
+      endingMessage,
+      emotionJourney,
+      uiLanguage,
+      spaceReading,
+      spaceMyth,
+      storyMoments: moments,
+    }),
+    [emotionJourney, endingMessage, moments, spaceMyth, spaceReading, uiLanguage],
   );
+  const shareMeta = useMemo(() => {
+    if (uiLanguage === 'en') return rawShareMeta;
+
+    return {
+      ...rawShareMeta,
+      title: 'ريل مرايا',
+      text: endingMessage
+        ? `حوّلت مرايا ${rawShareMeta.transformationLine.replace(/^من\s+/u, '').replace(/\s+إلى\s+/u, ' إلى ')}. ${endingMessage}`
+        : `دليل تحول من مرايا: ${rawShareMeta.transformationLine}.`,
+      sharedMessage: 'تمت مشاركة الريل وملصق التحوّل.',
+      savedMessage: 'تم تنزيل الريل وملصق التحوّل. شاركهما أينما تريد.',
+      unsupportedMessage: 'هذا المتصفح لا يدعم مشاركة الريل والملصق مباشرة، لذلك تم تنزيلهما بدلًا من ذلك.',
+      partialShareMessage: 'تمت مشاركة الريل، وتم تنزيل الملصق ليبقى كغلاف أو معاينة.',
+      label: 'شارك أثر التحوّل كريل',
+      exportingLabel: 'نجهز الريل وملصق التحوّل...',
+      helper: 'ينشئ ريل قصيرًا مع غلاف يثبت التحول ويفتح نافذة المشاركة إذا كان المتصفح يدعم ذلك.',
+      posterLabel: 'شارك ملصق التحوّل',
+      posterExportingLabel: 'نجهز ملصق التحوّل...',
+      posterHelper: 'يمنحك غلافًا نظيفًا وجاهزًا للقصص والمنشورات وملخصات العرض.',
+      posterSharedMessage: 'تمت مشاركة ملصق التحوّل.',
+      posterSavedMessage: 'تم تنزيل ملصق التحوّل.',
+      posterUnsupportedMessage: 'هذا المتصفح لا يدعم مشاركة الملصق مباشرة، لذلك تم تنزيله بدلًا من ذلك.',
+      socialLabel: 'شارك غلافًا مربعًا للشبكات',
+      socialExportingLabel: 'نجهز الغلاف المربع...',
+      socialHelper: 'ينشئ بطاقة مربعة مناسبة لخلاصات X وLinkedIn والمعاينات.',
+      socialSharedMessage: 'تمت مشاركة الغلاف المربع.',
+      socialSavedMessage: 'تم تنزيل الغلاف المربع.',
+      socialUnsupportedMessage: 'هذا المتصفح لا يدعم مشاركة الغلاف المربع مباشرة، لذلك تم تنزيله بدلًا من ذلك.',
+      unsupportedBrowserMessage: 'هذا المتصفح لا يدعم تسجيل الريل.',
+      fallbackError: 'فشل التصدير.',
+      eyebrow: 'شارك التحوّل',
+      headline: rawShareMeta.headline === 'Ù‡Ø°Ù‡ Ø§Ù„Ù„Ø­Ø¸Ø© ØªØ³ØªØ­Ù‚ Ø£Ù† ØªØ®Ø±Ø¬ Ù…Ù† Ø§Ù„ØªØ·Ø¨ÙŠÙ‚.'
+        ? 'ما دخل الطقس كشعور خرج منه كتحوّل.'
+        : rawShareMeta.headline,
+      prompt: 'احمل هذا الدليل على التحوّل إلى خارج الطقس.',
+      reelBadge: 'تحوّل مرايا',
+      reelTitle: 'هذا الشعور صار مرئيًا.',
+      reelPrompt: 'شاركه ما دام الأثر دافئًا.',
+      posterBadge: 'ملصق التحوّل',
+      posterPrompt: 'احتفظ بملصق يثبت هذا التحول بحجم جاهز للمشاركة.',
+      socialBadge: 'غلاف اجتماعي',
+      socialTitle: 'خذ دليل التحول إلى الخلاصة.',
+      socialPrompt: 'مقاس مخصص للمعاينة الاجتماعية لا لمشهد واحد فقط.',
+      ...{ title: `ريل مرايا | ${rawShareMeta.transformationLine}` },
+      ...{
+        text: rawShareMeta.caption || rawShareMeta.text,
+        caption: rawShareMeta.caption || [
+          rawShareMeta.headline,
+          rawShareMeta.transformationLine,
+          endingMessage,
+          'أثر طقسي من مرايا.',
+        ].filter(Boolean).join('\n'),
+        captionLabel: 'نص المشاركة',
+        captionHelper: 'انسخ نصًا جاهزًا للنشر يقدّم التحول أولًا في المنشور أو الستوري أو العرض.',
+        captionActionLabel: 'انسخ النص',
+        captionCopiedMessage: 'تم نسخ نص المشاركة.',
+        captionUnsupportedMessage: 'النسخ غير متاح في هذا المتصفح.',
+        reelTitle: rawShareMeta.headline === 'Ã™â€¡Ã˜Â°Ã™â€¡ Ã˜Â§Ã™â€žÃ™â€žÃ˜Â­Ã˜Â¸Ã˜Â© Ã˜ÂªÃ˜Â³Ã˜ÂªÃ˜Â­Ã™â€š Ã˜Â£Ã™â€  Ã˜ÂªÃ˜Â®Ã˜Â±Ã˜Â¬ Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â·Ã˜Â¨Ã™Å Ã™â€š.'
+          ? 'ما دخل الطقس كشعور خرج منه كتحول.'
+          : rawShareMeta.headline,
+        socialTitle: rawShareMeta.headline === 'Ã™â€¡Ã˜Â°Ã™â€¡ Ã˜Â§Ã™â€žÃ™â€žÃ˜Â­Ã˜Â¸Ã˜Â© Ã˜ÂªÃ˜Â³Ã˜ÂªÃ˜Â­Ã™â€š Ã˜Â£Ã™â€  Ã˜ÂªÃ˜Â®Ã˜Â±Ã˜Â¬ Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â·Ã˜Â¨Ã™Å Ã™â€š.'
+          ? 'ما دخل الطقس كشعور خرج منه كتحول.'
+          : rawShareMeta.headline,
+      },
+      sceneWord: 'المشهد',
+    };
+  }, [endingMessage, rawShareMeta, uiLanguage]);
   const socialMeta = useMemo(() => ({
     label: shareMeta.socialLabel || 'Share square social cover',
     exportingLabel: shareMeta.socialExportingLabel || 'Preparing your square social cover...',
@@ -841,11 +974,24 @@ export default function StoryReelExport({
     }
   }, [endingMessage, isExporting, journeyFileStem, moments, shareMeta]);
 
+  const handleCopyCaption = useCallback(async () => {
+    const nextCaption = String(shareMeta.caption || shareMeta.text || '').trim();
+    if (!nextCaption || isExporting) return;
+
+    try {
+      await copyTextToClipboard(nextCaption);
+      setMessage(shareMeta.captionCopiedMessage || 'Share caption copied.');
+    } catch (error) {
+      setMessage(error.message || shareMeta.captionUnsupportedMessage || 'Copy is not available in this browser.');
+    }
+  }, [isExporting, shareMeta]);
+
   if (!moments.length) return null;
 
   const reelLabel = exportingKind === 'reel' ? shareMeta.exportingLabel : shareMeta.label;
   const posterLabel = exportingKind === 'poster' ? shareMeta.posterExportingLabel : shareMeta.posterLabel;
   const socialLabel = exportingKind === 'social' ? socialMeta.exportingLabel : socialMeta.label;
+  const captionActionLabel = shareMeta.captionActionLabel || (uiLanguage === 'en' ? 'Copy caption' : 'انسخ النص');
 
   return (
     <div className="story-reel-export">
@@ -919,6 +1065,23 @@ export default function StoryReelExport({
           </p>
           <p className="story-reel-export__helper story-reel-export__helper--secondary">
             {socialMeta.helper}
+          </p>
+          <div className="story-reel-export__caption-card">
+            <div className="story-reel-export__caption-head">
+              <p className="story-reel-export__caption-label">{shareMeta.captionLabel}</p>
+              <button
+                type="button"
+                className="story-reel-export__button story-reel-export__button--tertiary"
+                onClick={handleCopyCaption}
+                disabled={isExporting}
+              >
+                {captionActionLabel}
+              </button>
+            </div>
+            <p className="story-reel-export__caption-text">{shareMeta.caption}</p>
+          </div>
+          <p className="story-reel-export__helper story-reel-export__helper--secondary">
+            {shareMeta.captionHelper}
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import useReducedMotion from '../../hooks/useReducedMotion.js';
+import KineticText from '../ui/KineticText.jsx';
 
 /**
  * NarrationText - interleaved RTL/LTR stream renderer.
@@ -15,6 +16,19 @@ const KIND_LABELS = {
     narration: 'Narration',
     visual: 'Visual',
     reflection: 'Reflection',
+  },
+};
+
+const RITUAL_PHASE_LABELS = {
+  ar: {
+    invocation: 'الاستحضار',
+    reflection: 'الانعكاس',
+    becoming: 'التشكّل',
+  },
+  en: {
+    invocation: 'Invocation',
+    reflection: 'Reflection',
+    becoming: 'Becoming',
   },
 };
 
@@ -46,6 +60,9 @@ export default function NarrationText({
   onComplete,
   onBlockStart,
   speed = 45,
+  mood = 'hope',
+  ritualPhase = '',
+  directorMovePhase = '',
 }) {
   const prefersReducedMotion = useReducedMotion();
   const normalizedBlocks = useMemo(() => normalizeBlocks(blocks, text), [blocks, text]);
@@ -107,7 +124,17 @@ export default function NarrationText({
 
       const words = block.text_ar.split(' ');
       const totalWords = words.length;
-      const intervalMs = prefersReducedMotion ? 1 : Math.max(30, speed + (totalWords > 30 ? -10 : 0));
+
+      let speedMultiplier = 1;
+      const normalizedMood = (mood || '').toLowerCase();
+      if (['anxiety', 'anger', 'confusion'].includes(normalizedMood)) {
+        speedMultiplier = 0.6;
+      } else if (['hope', 'wonder', 'nostalgia', 'loneliness'].includes(normalizedMood)) {
+        speedMultiplier = 1.4;
+      }
+
+      const baseSpeed = Math.max(30, speed + (totalWords > 30 ? -10 : 0));
+      const intervalMs = prefersReducedMotion ? 1 : Math.round(baseSpeed * speedMultiplier);
 
       timerRef.current = setInterval(() => {
         setActiveWordCount((prev) => {
@@ -134,7 +161,7 @@ export default function NarrationText({
     return () => {
       clearTimers();
     };
-  }, [normalizedBlocks, speed, onComplete, onBlockStart, prefersReducedMotion]);
+  }, [normalizedBlocks, speed, onComplete, onBlockStart, prefersReducedMotion, mood]);
 
   const handleClick = () => {
     if (!isComplete && normalizedBlocks.length > 0) {
@@ -148,15 +175,45 @@ export default function NarrationText({
     }
   };
 
-  // C4: Limit to showing only the active block or the single most recent completed one
-  // to ensure a focused, sequential reading experience as per design critique.
   const activeBlock = normalizedBlocks[activeBlockIndex];
   const completedBlocks = normalizedBlocks.slice(0, activeBlockIndex);
   const displayBlock = activeBlock || (completedBlocks.length > 0 ? completedBlocks[completedBlocks.length - 1] : null);
+  const phaseLabel = RITUAL_PHASE_LABELS[uiLanguage]?.[ritualPhase] || RITUAL_PHASE_LABELS.en[ritualPhase] || '';
+  const narrationClassName = [
+    'narration-text',
+    uiLanguage === 'ar' ? 'narration-text--arabic' : 'narration-text--english',
+    ritualPhase ? `narration-text--phase-${ritualPhase}` : '',
+    directorMovePhase ? `narration-text--director-${directorMovePhase}` : '',
+    `narration-text--mood-${String(mood || 'hope').replace(/_/g, '-')}`,
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="narration-text" onClick={handleClick} aria-live="polite" aria-atomic="false">
+    <div className={narrationClassName} onClick={handleClick} aria-live="polite" aria-atomic="false">
+      <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
+        <filter id="ink-spread">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" mode="normal" />
+        </filter>
+      </svg>
+
       <div className="narration-text__stack" style={{ transition: 'all 0.5s var(--ease-spring)' }}>
+        {phaseLabel && (
+          <div className="narration-text__phase-echo" aria-hidden="true">
+            {uiLanguage === 'ar' ? (
+              <KineticText
+                text={phaseLabel}
+                uiLanguage={uiLanguage}
+                className="narration-text__phase-echo-text"
+                surface="scene"
+                emphasis="soft"
+              />
+            ) : (
+              <span className="narration-text__phase-echo-text">{phaseLabel}</span>
+            )}
+          </div>
+        )}
+
         {displayBlock && (
           <p
             key={activeBlock ? `active_${activeBlockIndex}` : `last_${completedBlocks.length}`}
@@ -166,21 +223,35 @@ export default function NarrationText({
               minHeight: '120px',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}
           >
-            <span className="narration-text__label">{labels[displayBlock.kind] || labels.narration}</span>
-            <span className="narration-text__content">
+            <span className="narration-text__label">
+              {uiLanguage === 'ar' ? (
+                <KineticText
+                  text={labels[displayBlock.kind] || labels.narration}
+                  uiLanguage={uiLanguage}
+                  className="narration-text__label-text"
+                  surface="scene"
+                  emphasis="soft"
+                />
+              ) : (
+                labels[displayBlock.kind] || labels.narration
+              )}
+            </span>
+            <span
+              className="narration-text__content"
+              style={{ filter: 'url(#ink-spread)', padding: '0.5rem' }}
+            >
               {activeBlock ? (
                 displayBlock.text_ar.split(' ').map((word, wIdx) => (
                   <React.Fragment key={wIdx}>
                     <span
                       style={{
-                        opacity: wIdx < activeWordCount ? 1 : 0,
-                        filter: wIdx < activeWordCount ? 'blur(0px)' : 'blur(4px)',
-                        transform: wIdx < activeWordCount ? 'translateY(0) scale(1)' : 'translateY(4px) scale(0.9)',
-                        fontVariationSettings: wIdx < activeWordCount ? '"wght" var(--font-wght)' : '"wght" 200',
-                        transition: 'opacity 0.6s var(--ease-spring), filter 0.6s var(--ease-spring), transform 0.6s var(--ease-spring), font-variation-settings 0.8s var(--ease-spring)',
+                        opacity: wIdx < activeWordCount ? 1 : 0.05,
+                        transform: wIdx < activeWordCount ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.5)',
+                        fontVariationSettings: wIdx < activeWordCount ? '"wght" var(--font-wght)' : '"wght" 100',
+                        transition: 'opacity 0.8s ease-out, transform 0.9s cubic-bezier(0.19, 1, 0.22, 1), font-variation-settings 1.2s ease',
                         display: 'inline-block',
                       }}
                     >

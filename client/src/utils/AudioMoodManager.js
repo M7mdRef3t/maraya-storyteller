@@ -199,6 +199,51 @@ export class AudioMoodManager {
     }
   }
 
+  // Brand Sound for Duo Catharsis Sync
+  playDuoSyncSound() {
+    if (!this.context) return;
+    try {
+      if (this.context.state === 'suspended') {
+        this.context.resume();
+      }
+
+      const now = this.context.currentTime;
+      const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5 (C Major triad)
+
+      freqs.forEach((freq, i) => {
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq + (i * 2), now + 3);
+
+        gain.gain.setValueAtTime(0, now);
+        const attackTime = now + 0.1 + (i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.15, attackTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, attackTime + 3);
+
+        osc.connect(gain);
+        gain.connect(this.context.destination);
+
+        osc.start(now);
+        osc.stop(attackTime + 3);
+      });
+    } catch (e) {
+      console.error('[audio] Duo sync sound failed:', e);
+    }
+  }
+
+  // Adjust volume multiplier (1.0 = normal, 0.1 = quiet)
+  setVolume(multiplier = 1.0, duration = 1.0) {
+    if (!this.context || !this.currentGain) return;
+    const now = this.context.currentTime;
+    const targetVolume = 0.45 * multiplier;
+    this.currentGain.gain.cancelScheduledValues(now);
+    this.currentGain.gain.setValueAtTime(this.currentGain.gain.value, now);
+    this.currentGain.gain.linearRampToValueAtTime(targetVolume, now + duration);
+  }
+
   dispose() {
     this.stop();
     if (this.context) {

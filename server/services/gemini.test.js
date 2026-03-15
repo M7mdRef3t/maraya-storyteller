@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { normalizeInterleavedBlocks, normalizeScene } from './gemini.js';
+import { normalizeInterleavedBlocks, normalizeScene, normalizeSpaceAnalysis } from './gemini.js';
 
 test('normalizeInterleavedBlocks returns empty array for invalid scene', () => {
   assert.deepEqual(normalizeInterleavedBlocks(null), []);
@@ -64,6 +64,10 @@ test('normalizeScene trims and filters choices', () => {
       scene_id: ' custom ',
       narration_ar: ' n ',
       image_prompt: ' p ',
+      carried_artifact: '  mirror shard ',
+      symbolic_anchor: '  fragile clarity ',
+      ritual_phase: ' reflection ',
+      mythic_echo: '  the room keeps your threshold alive ',
       choices: [
         { text_ar: '  valid  ', emotion_shift: '  wonder ' },
         { text_ar: '   ' },
@@ -77,5 +81,22 @@ test('normalizeScene trims and filters choices', () => {
   assert.equal(result.scene_id, 'custom');
   assert.equal(result.narration_ar, 'n');
   assert.equal(result.image_prompt, 'p');
+  assert.equal(result.carried_artifact, 'mirror shard');
+  assert.equal(result.symbolic_anchor, 'fragile clarity');
+  assert.equal(result.ritual_phase, 'reflection');
+  assert.equal(result.mythic_echo, 'the room keeps your threshold alive');
   assert.deepEqual(result.choices, [{ text_ar: 'valid', emotion_shift: 'wonder' }]);
+});
+
+test('normalizeSpaceAnalysis falls back to space reading when mythic reading is missing', () => {
+  const result = normalizeSpaceAnalysis({
+    detected_emotion: 'wonder',
+    space_reading: 'A warm corridor waiting for a return.',
+  });
+
+  assert.deepEqual(result, {
+    detected_emotion: 'wonder',
+    space_reading: 'A warm corridor waiting for a return.',
+    mythic_reading: 'A warm corridor waiting for a return.',
+  });
 });

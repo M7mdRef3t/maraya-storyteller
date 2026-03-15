@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App, { buildJudgeFinaleStingProfile } from './App.jsx';
 import { APP_STATES } from './utils/constants.js';
@@ -43,10 +43,14 @@ function createHookState() {
     },
     currentMood: 'hopeful_strings',
     endingMessage: 'You reached a bright threshold the mirror will remember.',
+    spaceReading: '',
+    spaceMyth: '',
     transcript: [],
     storyMode: 'judge_en',
     musicEnabled: true,
     voiceEnabled: true,
+    biometricsEnabled: false,
+    spatialModeEnabled: false,
     settingsOpen: false,
     narrationSpeed: 45,
     voiceSupported: true,
@@ -75,6 +79,8 @@ function createHookState() {
     handleModeChange: vi.fn(),
     handleToggleVoice: vi.fn(),
     handleToggleMusic: vi.fn(),
+    handleToggleBiometrics: vi.fn(),
+    handleToggleSpatialMode: vi.fn(),
     setNarrationSpeed: vi.fn(),
     handleOpenSettings: vi.fn(),
     handleCloseSettings: vi.fn(),
@@ -119,6 +125,7 @@ function createHookState() {
     handleJoinDuo: vi.fn(),
     handleLeaveDuo: vi.fn(),
     dismissToast: vi.fn(),
+    setMusicVolume: vi.fn(),
   };
 }
 
@@ -146,7 +153,9 @@ describe('App judge finale voice cue', () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -176,5 +185,23 @@ describe('App judge finale voice cue', () => {
         freqs: [261.63, 392, 523.25, 783.99],
       }),
     );
+  });
+
+  it('holds the ending in afterglow before revealing restart actions', () => {
+    render(<App />);
+
+    expect(screen.getByText('Proof of Transformation')).not.toBeNull();
+    expect(screen.getByText('What entered as confusion left as hope.')).not.toBeNull();
+    expect(screen.getByText('Let the afterglow settle before you carry it onward.')).not.toBeNull();
+    expect(screen.queryByText('Start a New Journey')).toBeNull();
+    expect(screen.queryByText('Story Reel Export')).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(screen.getByText('Start a New Journey')).not.toBeNull();
+    expect(screen.getByText('Story Reel Export')).not.toBeNull();
+    expect(screen.queryByText('Let the afterglow settle before you carry it onward.')).toBeNull();
   });
 });

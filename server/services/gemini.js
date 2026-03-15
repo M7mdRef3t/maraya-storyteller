@@ -61,6 +61,23 @@ const SCENE_SCHEMA = {
             type: 'string',
             enum: AUDIO_MOOD_ENUM,
           },
+          carried_artifact: {
+            type: 'string',
+            description: 'A small but distinct visual motif/object from THIS scene that must be subtly hidden in the background of the NEXT scene to create subliminal connection (e.g. "a cracked mirror shard", "a glowing ember").',
+          },
+          symbolic_anchor: {
+            type: 'string',
+            description: 'A concise emotional meaning attached to the carried artifact (e.g. "fragile clarity", "stored warmth").',
+          },
+          ritual_phase: {
+            type: 'string',
+            enum: ['invocation', 'reflection', 'becoming'],
+            description: 'Where this scene sits inside the transformation ritual arc.',
+          },
+          mythic_echo: {
+            type: 'string',
+            description: 'A concise line that carries the mythic force of the room or symbolic world into this scene.',
+          },
           interleaved_blocks: {
             type: 'array',
             minItems: 2,
@@ -302,8 +319,38 @@ export function normalizeScene(scene, index, outputMode) {
     narration_ar: narration,
     image_prompt: imagePrompt,
     audio_mood: audioMood,
+    carried_artifact: typeof scene.carried_artifact === 'string' ? scene.carried_artifact.trim() : '',
+    symbolic_anchor: typeof scene.symbolic_anchor === 'string' ? scene.symbolic_anchor.trim() : '',
+    ritual_phase: typeof scene.ritual_phase === 'string' ? scene.ritual_phase.trim() : '',
+    mythic_echo: typeof scene.mythic_echo === 'string' ? scene.mythic_echo.trim() : '',
     interleaved_blocks: normalizeInterleavedBlocks(scene, outputMode),
     choices,
+  };
+}
+
+function normalizeSpaceText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+export function normalizeSpaceAnalysis(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      detected_emotion: 'hope',
+      space_reading: '',
+      mythic_reading: '',
+    };
+  }
+
+  const detectedEmotion = typeof payload.detected_emotion === 'string' && payload.detected_emotion.trim()
+    ? payload.detected_emotion.trim()
+    : 'hope';
+  const spaceReading = normalizeSpaceText(payload.space_reading);
+  const mythicReading = normalizeSpaceText(payload.mythic_reading) || spaceReading;
+
+  return {
+    detected_emotion: detectedEmotion,
+    space_reading: spaceReading,
+    mythic_reading: mythicReading,
   };
 }
 
@@ -377,5 +424,5 @@ export async function analyzeSpace(systemPrompt, imageBase64, mimeType) {
   });
 
   const text = response.text;
-  return JSON.parse(text);
+  return normalizeSpaceAnalysis(JSON.parse(text));
 }

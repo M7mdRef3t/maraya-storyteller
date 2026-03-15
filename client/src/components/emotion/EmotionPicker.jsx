@@ -36,9 +36,16 @@ export default function EmotionPicker({
 }) {
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [customText, setCustomText] = useState('');
   const optionRefs = useRef([]);
   const startLocked = !canStartStory;
   const judgeHero = JUDGE_HERO_COPY[uiLanguage] || JUDGE_HERO_COPY.en;
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    if (!customText.trim()) return;
+    onSelectEmotion('hope', customText.trim()); // Default to hope, backend can augment
+  };
 
   const handleEmotionKeyDown = (event, index) => {
     const isHorizontalKey = event.key === 'ArrowRight' || event.key === 'ArrowLeft';
@@ -97,9 +104,8 @@ export default function EmotionPicker({
             <span className="emotion-picker__voice-label">{uiText.musicLabel}</span>
             <button
               type="button"
-              className={`emotion-picker__voice-toggle ${
-                musicEnabled ? 'emotion-picker__voice-toggle--on' : ''
-              }`}
+              className={`emotion-picker__voice-toggle ${musicEnabled ? 'emotion-picker__voice-toggle--on' : ''
+                }`}
               onClick={onToggleMusic}
             >
               {musicEnabled ? uiText.musicOn : uiText.musicOff}
@@ -110,9 +116,8 @@ export default function EmotionPicker({
             <span className="emotion-picker__voice-label">{uiText.voiceLabel}</span>
             <button
               type="button"
-              className={`emotion-picker__voice-toggle ${
-                voiceEnabled ? 'emotion-picker__voice-toggle--on' : ''
-              }`}
+              className={`emotion-picker__voice-toggle ${voiceEnabled ? 'emotion-picker__voice-toggle--on' : ''
+                }`}
               onClick={onToggleVoice}
               disabled={!voiceSupported}
               title={!voiceSupported ? uiText.voiceUnavailable : ''}
@@ -209,6 +214,17 @@ export default function EmotionPicker({
           </button>
         ))}
       </div>
+
+      <form onSubmit={handleCustomSubmit} className="emotion-picker__custom-form">
+        <input
+          type="text"
+          className="emotion-picker__custom-input"
+          placeholder={uiLanguage === 'en' ? 'Or express in your own words...' : 'أو عبر بكلماتك الخاصة...'}
+          value={customText}
+          onChange={(e) => setCustomText(e.target.value)}
+          disabled={startLocked}
+        />
+      </form>
 
       <button
         type="button"

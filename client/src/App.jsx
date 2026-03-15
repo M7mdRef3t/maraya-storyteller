@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import StoryCanvas from './components/StoryCanvas.jsx';
 import EmotionPicker from './components/emotion/EmotionPicker.jsx';
 import SpaceUpload from './components/SpaceUpload.jsx';
@@ -13,8 +13,10 @@ import SplashScreen from './components/SplashScreen.jsx';
 import OnboardingCarousel from './components/OnboardingCarousel.jsx';
 import SettingsSheet from './components/layout/SettingsSheet.jsx';
 import { ToastContainer } from './components/ui/Toast.jsx';
+import KineticText from './components/ui/KineticText.jsx';
 import useStoryLogic from './hooks/useStoryLogic.js';
 import { APP_STATES, JUDGE_MODE_QUERY_PARAM } from './utils/constants.js';
+import { buildTransformationSummary, toDisplayEmotionLabel } from './utils/transformation.js';
 
 const EMOTION_COLORS = {
   hope: '#5effb3',
@@ -24,21 +26,6 @@ const EMOTION_COLORS = {
   loneliness: '#4682b4',
   wonder: '#ffd700',
 };
-
-function toDisplayEmotionLabel(emotion, uiLanguage) {
-  const labels = {
-    hope: { en: 'hope', ar: 'الأمل' },
-    anxiety: { en: 'anxiety', ar: 'القلق' },
-    confusion: { en: 'confusion', ar: 'الحيرة' },
-    nostalgia: { en: 'nostalgia', ar: 'الحنين' },
-    loneliness: { en: 'loneliness', ar: 'الوحدة' },
-    wonder: { en: 'wonder', ar: 'الدهشة' },
-  };
-  const normalized = String(emotion || '').trim().toLowerCase();
-  const match = labels[normalized];
-  if (!match) return normalized || (uiLanguage === 'en' ? 'feeling' : 'شعور');
-  return uiLanguage === 'en' ? match.en : match.ar;
-}
 
 function findLastVisualMoment(moments = []) {
   for (let index = moments.length - 1; index >= 0; index -= 1) {
@@ -127,9 +114,9 @@ export function buildJudgeFinaleStingProfile(fromEmotion, toEmotion) {
 }
 
 function playJudgeFinaleSting(stingProfile) {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtor) return () => {};
+  if (!AudioCtor) return () => { };
 
   const profile = stingProfile || buildJudgeFinaleStingProfile('confusion', 'hope');
   const audioContext = new AudioCtor();
@@ -154,12 +141,12 @@ function playJudgeFinaleSting(stingProfile) {
   });
 
   const closeTimer = window.setTimeout(() => {
-    audioContext.close().catch(() => {});
+    audioContext.close().catch(() => { });
   }, Math.ceil((profile.duration * 1000) + 280));
 
   return () => {
     window.clearTimeout(closeTimer);
-    audioContext.close().catch(() => {});
+    audioContext.close().catch(() => { });
   };
 }
 
@@ -169,7 +156,27 @@ export default function App() {
   const judgeFinaleStingKeyRef = useRef('');
   const [imageAnnouncement, setImageAnnouncement] = useState('');
   const [judgeEndingSceneAccent, setJudgeEndingSceneAccent] = useState('');
+  const [endingActionsVisible, setEndingActionsVisible] = useState(false);
+  const [isIsolated, setIsIsolated] = useState(false);
+  const [hrvValue, setHrvValue] = useState(68);
+  const longPressTimerRef = useRef(null);
+  const hideUiTimerRef = useRef(null);
+  const hrvIntervalRef = useRef(null);
   const judgeMode = new URLSearchParams(window.location.search).get(JUDGE_MODE_QUERY_PARAM) === '1';
+
+  const handlePointerDown = (e) => {
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    longPressTimerRef.current = setTimeout(() => {
+      setIsIsolated((prev) => !prev);
+    }, 600);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   const {
     appState,
@@ -179,10 +186,14 @@ export default function App() {
     currentScene,
     currentMood,
     endingMessage,
+    spaceReading,
+    spaceMyth,
     transcript,
     storyMode,
     musicEnabled,
     voiceEnabled,
+    biometricsEnabled,
+    spatialModeEnabled,
     settingsOpen,
     narrationSpeed,
     voiceSupported,
@@ -198,6 +209,8 @@ export default function App() {
     handleModeChange,
     handleToggleVoice,
     handleToggleMusic,
+    handleToggleBiometrics,
+    handleToggleSpatialMode,
     setNarrationSpeed,
     handleOpenSettings,
     handleCloseSettings,
@@ -215,6 +228,7 @@ export default function App() {
     secretEndingKey,
     mirrorMemory,
     storyMoments,
+    directorMove,
     lastWhisperText,
     whisperInterpretation,
     whisperInput,
@@ -230,7 +244,18 @@ export default function App() {
     handleJoinDuo,
     handleLeaveDuo,
     dismissToast,
+    setMusicVolume,
   } = useStoryLogic(canvasRef, { judgeMode });
+
+  const transformationSummary = buildTransformationSummary({
+    emotionJourney,
+    endingMessage,
+    whisperText: lastWhisperText,
+    spaceReading,
+    spaceMyth,
+    storyMoments,
+    uiLanguage,
+  });
 
   useEffect(() => {
     if (!currentScene) return;
@@ -265,9 +290,9 @@ export default function App() {
     emotionJourney[emotionJourney.length - 1],
     uiLanguage,
   );
-  const judgeEndingLine = uiLanguage === 'en'
+  const judgeEndingLine = transformationSummary.transformationLine || (uiLanguage === 'en'
     ? `From ${judgeEndingFromEmotion} to ${judgeEndingToEmotion}`
-    : `من ${judgeEndingFromEmotion} إلى ${judgeEndingToEmotion}`;
+    : `من ${judgeEndingFromEmotion} إلى ${judgeEndingToEmotion}`);
   const judgeEndingCaption = uiLanguage === 'en'
     ? 'A judge-only ending burst that makes the transformation feel like a reveal, not a fade-out.'
     : 'خاتمة تحكيمية خاصة تجعل التحوّل يبدو ككشفٍ بصري لا كتلاشي هادئ.';
@@ -279,11 +304,86 @@ export default function App() {
     : `اكتمل التحول. ${judgeEndingLine}.`;
 
   useEffect(() => {
+    if (!biometricsEnabled || appState !== APP_STATES.STORY || judgeMode) {
+      if (hrvIntervalRef.current) clearInterval(hrvIntervalRef.current);
+      setHrvValue(68);
+      return undefined;
+    }
+
+    hrvIntervalRef.current = setInterval(() => {
+      setHrvValue((prev) => {
+        if (prev < 40) return prev; // If already dropped, keep it low for a bit
+
+        // ~4% chance of a sudden stress drop every 2s
+        if (Math.random() < 0.04) {
+          setTimeout(() => {
+            handleNarrationBlock({
+              id: 'biometric_interrupt',
+              text_ar: 'الرصد الحيوي سجل انكمافاً في معدل الـ HRV... المشهد يتوقف ليعكس هذه اللحظة، خذ نفساً عميقاً.',
+              text_en: 'Biometrics detected an HRV crash... The architecture is halting to reflect this moment. Breathe.',
+              trigger_reason: 'biometric_spike',
+            }, true);
+          }, 1200);
+          return 31;
+        }
+
+        const fluctuation = Math.floor(Math.random() * 5) - 2;
+        return Math.min(Math.max(prev + fluctuation, 60), 85);
+      });
+    }, 2000);
+
+    return () => {
+      if (hrvIntervalRef.current) clearInterval(hrvIntervalRef.current);
+    };
+  }, [appState, biometricsEnabled, handleNarrationBlock, judgeMode]);
+
+  useEffect(() => {
     if (appState !== APP_STATES.ENDING) {
       judgeFinaleVoiceKeyRef.current = '';
       judgeFinaleStingKeyRef.current = '';
+      setEndingActionsVisible(false);
+      return undefined;
     }
-  }, [appState]);
+
+    const timer = window.setTimeout(() => {
+      setEndingActionsVisible(true);
+    }, 1400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [appState, endingMessage, secretEndingKey]);
+
+  const wakeUpUi = React.useCallback(() => {
+    setIsIsolated(false);
+    if (hideUiTimerRef.current) clearTimeout(hideUiTimerRef.current);
+    hideUiTimerRef.current = setTimeout(() => {
+      setIsIsolated(true);
+    }, 7000);
+  }, []);
+
+  useEffect(() => {
+    if (appState !== APP_STATES.STORY) {
+      if (hideUiTimerRef.current) clearTimeout(hideUiTimerRef.current);
+      setIsIsolated(false);
+      return undefined;
+    }
+
+    wakeUpUi();
+
+    window.addEventListener('mousemove', wakeUpUi);
+    window.addEventListener('mousedown', wakeUpUi);
+    window.addEventListener('touchstart', wakeUpUi, { passive: true });
+    window.addEventListener('keydown', wakeUpUi);
+
+    return () => {
+      window.removeEventListener('mousemove', wakeUpUi);
+      window.removeEventListener('mousedown', wakeUpUi);
+      window.removeEventListener('touchstart', wakeUpUi);
+      window.removeEventListener('keydown', wakeUpUi);
+      if (hideUiTimerRef.current) clearTimeout(hideUiTimerRef.current);
+    };
+  }, [appState, wakeUpUi]);
 
   useEffect(() => {
     let active = true;
@@ -377,7 +477,11 @@ export default function App() {
   }, [appState, emotionJourney, endingMessage, judgeEndingLine, judgeMode, musicEnabled]);
 
   return (
-    <div className={`app app--maraya ${judgeMode ? 'app--judge' : ''}`} dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}>
+    <div
+      className={`app app--maraya ${judgeMode ? 'app--judge' : ''} ${spatialModeEnabled ? 'app--spatial' : ''}`}
+      dir={uiLanguage === 'en' ? 'ltr' : 'rtl'}
+      aria-hidden={settingsOpen ? "true" : null}
+    >
       <StoryCanvas
         ref={canvasRef}
         mood={currentMood}
@@ -386,7 +490,13 @@ export default function App() {
         sceneAltText={currentScene?.visual_desc || currentScene?.visual_prompt || currentScene?.narration_ar || ''}
       />
 
-      <div className="app__overlay">
+      <div
+        className={`app__overlay ${isIsolated && appState === APP_STATES.STORY ? 'app__overlay--hidden' : ''}`}
+        onPointerDown={appState === APP_STATES.STORY ? handlePointerDown : undefined}
+        onPointerUp={appState === APP_STATES.STORY ? handlePointerUp : undefined}
+        onPointerCancel={appState === APP_STATES.STORY ? handlePointerUp : undefined}
+        onPointerLeave={appState === APP_STATES.STORY ? handlePointerUp : undefined}
+      >
         {appState === 'SPLASH' && (
           <SplashScreen
             uiLanguage={uiLanguage}
@@ -454,6 +564,8 @@ export default function App() {
             uiLanguage={uiLanguage}
             whisperText={lastWhisperText}
             whisperReflection={whisperInterpretation?.reflection}
+            spaceReading={spaceReading}
+            spaceMyth={spaceMyth}
           />
         )}
 
@@ -479,6 +591,9 @@ export default function App() {
                   version={lastAcceptedVersion}
                   judgeMode={judgeMode}
                   duoState={duoState}
+                  mood={currentMood}
+                  directorMove={directorMove}
+                  onSetMusicVolume={setMusicVolume}
                 />
                 <SceneCardShare
                   scene={currentScene}
@@ -487,6 +602,7 @@ export default function App() {
                   imageData={sceneImageData}
                   imageMimeType={sceneImageMime}
                   uiLanguage={uiLanguage}
+                  isCatharsis={currentScene.is_final}
                 />
               </>
             )}
@@ -516,28 +632,94 @@ export default function App() {
                   : `نهاية سرية: ${secretEndingKey.toUpperCase()}`}
               </p>
             )}
-            <p className="ending__message">{endingMessage}</p>
-            <StoryReelExport
-              moments={storyMoments}
-              uiLanguage={uiLanguage}
-              endingMessage={endingMessage}
-              emotionJourney={emotionJourney}
-            />
-            <EmotionJourneyMap
-              journey={emotionJourney}
-              uiLanguage={uiLanguage}
-            />
-            {canRestartStory ? (
-              <button type="button" className="ending__restart" onClick={handleRestart}>
-                {uiText.restart}
-              </button>
-            ) : (
-              <p className="ending__duo-note">
-                {uiLanguage === 'en'
-                  ? `Waiting for ${duoState.partnerName || 'the host'} to start the next duo journey.`
-                  : `بانتظار ${duoState.partnerName || 'المضيف'} لبدء الرحلة الثنائية التالية.`}
+            <div className={`ending__afterglow ${endingActionsVisible ? 'ending__afterglow--settled' : ''}`}>
+              <p className="ending__proof-title">{transformationSummary.proofTitle}</p>
+              <h3 className={`ending__proof-line ${uiLanguage === 'ar' ? 'ending__proof-line--kinetic' : ''}`}>
+                {uiLanguage === 'ar' ? (
+                  <KineticText
+                    text={transformationSummary.proofLine}
+                    uiLanguage={uiLanguage}
+                    className="ending__proof-line-text"
+                    surface="afterglow"
+                    emphasis="intense"
+                  />
+                ) : (
+                  transformationSummary.proofLine
+                )}
+              </h3>
+              <p className="ending__arc">{transformationSummary.arcLine}</p>
+              {transformationSummary.originLine && (
+                <p className={`ending__origin ${uiLanguage === 'ar' ? 'ending__origin--kinetic' : ''}`}>
+                  {uiLanguage === 'ar' ? (
+                    <KineticText
+                      text={transformationSummary.originLine}
+                      uiLanguage={uiLanguage}
+                      className="ending__origin-text"
+                      surface="afterglow"
+                      emphasis="soft"
+                    />
+                  ) : (
+                    transformationSummary.originLine
+                  )}
+                </p>
+              )}
+              <p className={`ending__afterglow-line ${uiLanguage === 'ar' ? 'ending__afterglow-line--kinetic' : ''}`}>
+                {uiLanguage === 'ar' ? (
+                  <KineticText
+                    text={transformationSummary.afterglowLine}
+                    uiLanguage={uiLanguage}
+                    className="ending__afterglow-text"
+                    surface="afterglow"
+                    emphasis="soft"
+                  />
+                ) : (
+                  transformationSummary.afterglowLine
+                )}
               </p>
-            )}
+            </div>
+            <p className="ending__message">{endingMessage}</p>
+            <div
+              className={`ending__actions-shell ${endingActionsVisible ? 'ending__actions-shell--visible' : 'ending__actions-shell--waiting'}`}
+              aria-live="polite"
+            >
+              {!endingActionsVisible && (
+                <p className="ending__pause-note">
+                  {uiLanguage === 'en'
+                    ? 'Let the afterglow settle before you carry it onward.'
+                    : 'اترك أثر التحوّل يهدأ قليلًا قبل أن تحمله معك.'}
+                </p>
+              )}
+              {endingActionsVisible && (
+                <>
+                  <StoryReelExport
+                    moments={storyMoments}
+                    uiLanguage={uiLanguage}
+                    endingMessage={endingMessage}
+                    emotionJourney={emotionJourney}
+                    spaceReading={spaceReading}
+                    spaceMyth={spaceMyth}
+                  />
+                  <EmotionJourneyMap
+                    journey={emotionJourney}
+                    uiLanguage={uiLanguage}
+                    storyMoments={storyMoments}
+                    endingMessage={endingMessage}
+                    summary={transformationSummary}
+                  />
+                  {canRestartStory ? (
+                    <button type="button" className="ending__restart" onClick={handleRestart}>
+                      {uiText.restart}
+                    </button>
+                  ) : (
+                    <p className="ending__duo-note">
+                      {uiLanguage === 'en'
+                        ? `Waiting for ${duoState.partnerName || 'the host'} to start the next duo journey.`
+                        : `بانتظار ${duoState.partnerName || 'المضيف'} لبدء الرحلة الثنائية التالية.`}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -555,34 +737,46 @@ export default function App() {
         />
 
         {!(judgeMode && appState === APP_STATES.LANDING) && (
-        <div className="audio-hud">
-          <button
-            type="button"
-            className="audio-hud__btn"
-            onClick={handleOpenSettings}
-            aria-label={uiLanguage === 'en' ? 'Open settings' : 'فتح الإعدادات'}
-          >
-            {uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}
-          </button>
-          <button
-            type="button"
-            className={`audio-hud__btn ${musicEnabled ? 'audio-hud__btn--on' : ''}`}
-            onClick={handleToggleMusic}
-            aria-label={`${uiText.musicLabel}: ${musicEnabled ? uiText.musicOn : uiText.musicOff}`}
-          >
-            {uiText.musicLabel}: {musicEnabled ? uiText.musicOn : uiText.musicOff}
-          </button>
-          <button
-            type="button"
-            className={`audio-hud__btn ${voiceEnabled ? 'audio-hud__btn--on' : ''}`}
-            onClick={handleToggleVoice}
-            disabled={!voiceSupported}
-            title={!voiceSupported ? uiText.voiceUnavailable : ''}
-            aria-label={`${uiText.voiceLabel}: ${voiceEnabled ? uiText.voiceOn : uiText.voiceOff}`}
-          >
-            {uiText.voiceLabel}: {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
-          </button>
-        </div>
+          <div className="audio-hud">
+            {biometricsEnabled && (
+              <div
+                className={`audio-hud__btn ${hrvValue < 40 ? 'audio-hud__btn--warning' : ''}`}
+                style={{ cursor: 'default', pointerEvents: 'none', gap: '0.4rem' }}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-label={uiLanguage === 'en' ? `Heart Rate Variability is at ${hrvValue} milliseconds` : `معدل تقلب نبضات القلب عند ${hrvValue} ملي ثانية`}
+              >
+                <span aria-hidden="true">HRV: {hrvValue}ms {hrvValue < 40 ? '🔴' : '🟢'}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              className="audio-hud__btn"
+              onClick={handleOpenSettings}
+              aria-label={uiLanguage === 'en' ? 'Open settings' : 'فتح الإعدادات'}
+            >
+              {uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}
+            </button>
+            <button
+              type="button"
+              className={`audio-hud__btn ${musicEnabled ? 'audio-hud__btn--on' : ''}`}
+              onClick={handleToggleMusic}
+              aria-label={`${uiText.musicLabel}: ${musicEnabled ? uiText.musicOn : uiText.musicOff}`}
+            >
+              {uiText.musicLabel}: {musicEnabled ? uiText.musicOn : uiText.musicOff}
+            </button>
+            <button
+              type="button"
+              className={`audio-hud__btn ${voiceEnabled ? 'audio-hud__btn--on' : ''}`}
+              onClick={handleToggleVoice}
+              disabled={!voiceSupported}
+              title={!voiceSupported ? uiText.voiceUnavailable : ''}
+              aria-label={`${uiText.voiceLabel}: ${voiceEnabled ? uiText.voiceOn : uiText.voiceOff}`}
+            >
+              {uiText.voiceLabel}: {voiceEnabled ? uiText.voiceOn : uiText.voiceOff}
+            </button>
+          </div>
         )}
 
         <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
@@ -596,6 +790,10 @@ export default function App() {
           voiceEnabled={voiceEnabled}
           onToggleMusic={handleToggleMusic}
           onToggleVoice={handleToggleVoice}
+          biometricsEnabled={biometricsEnabled}
+          onToggleBiometrics={handleToggleBiometrics}
+          spatialModeEnabled={spatialModeEnabled}
+          onToggleSpatialMode={handleToggleSpatialMode}
           narrationSpeed={narrationSpeed}
           onNarrationSpeedChange={setNarrationSpeed}
           onClose={handleCloseSettings}

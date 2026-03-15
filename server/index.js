@@ -451,10 +451,12 @@ wss.on('connection', (ws, req) => {
 
   let conversationHistory = [];
   let currentEmotion = 'hope';
+  let currentTimeOfDay = null;
   let emotionHistory = [];
   let currentJourneyScenes = [];
   let currentWhisperText = '';
   let currentSpaceReading = '';
+  let currentMythicReading = '';
   let currentSecretEndingKey = null;
   let activeDuoRoomId = null;
   let duoRole = 'solo';
@@ -537,6 +539,51 @@ wss.on('connection', (ws, req) => {
     sendMessage('notice', { level, message });
   };
 
+  const getLatestJourneySymbolicState = () => {
+    const latestScene = currentJourneyScenes[currentJourneyScenes.length - 1] || null;
+    if (!latestScene) return null;
+
+    return {
+      carriedArtifact: String(latestScene.carried_artifact || '').trim(),
+      symbolicAnchor: String(latestScene.symbolic_anchor || '').trim(),
+      ritualPhase: String(latestScene.ritual_phase || '').trim(),
+      mythicEcho: String(latestScene.mythic_echo || '').trim(),
+    };
+  };
+
+  const buildSymbolicContinuityParts = () => {
+    const parts = [];
+    const latestSymbolicState = getLatestJourneySymbolicState();
+
+    if (currentMythicReading) {
+      parts.push({ text: `Mythic reading from the user's real space: ${currentMythicReading}` });
+    }
+
+    if (latestSymbolicState) {
+      const fragments = [];
+      if (latestSymbolicState.carriedArtifact) {
+        fragments.push(`carried artifact "${latestSymbolicState.carriedArtifact}"`);
+      }
+      if (latestSymbolicState.symbolicAnchor) {
+        fragments.push(`symbolic anchor "${latestSymbolicState.symbolicAnchor}"`);
+      }
+      if (latestSymbolicState.ritualPhase) {
+        fragments.push(`ritual phase "${latestSymbolicState.ritualPhase}"`);
+      }
+      if (latestSymbolicState.mythicEcho) {
+        fragments.push(`mythic echo "${latestSymbolicState.mythicEcho}"`);
+      }
+
+      if (fragments.length > 0) {
+        parts.push({
+          text: `Maintain symbolic continuity from the previous scene through ${fragments.join(', ')}.`,
+        });
+      }
+    }
+
+    return parts;
+  };
+
   const resetStoryState = () => {
     abortController.abort();
     abortController = new AbortController();
@@ -546,6 +593,7 @@ wss.on('connection', (ws, req) => {
     currentJourneyScenes = [];
     currentWhisperText = '';
     currentSpaceReading = '';
+    currentMythicReading = '';
     currentSecretEndingKey = null;
     const room = getActiveRoom();
     if (room) {
@@ -569,6 +617,7 @@ wss.on('connection', (ws, req) => {
         emotionHistory,
         whisperText: currentWhisperText,
         spaceReading: currentSpaceReading,
+        mythicReading: currentMythicReading || currentSpaceReading,
         endingMessage,
         secretEndingKey: currentSecretEndingKey,
         scenes: currentJourneyScenes,
@@ -628,6 +677,10 @@ wss.on('connection', (ws, req) => {
         narration_ar: scene.narration_ar,
         audio_mood: scene.audio_mood,
         story_scene_number: storySceneNumber,
+        carried_artifact: scene.carried_artifact || '',
+        symbolic_anchor: scene.symbolic_anchor || '',
+        ritual_phase: scene.ritual_phase || '',
+        mythic_echo: scene.mythic_echo || '',
       });
 
       sendMessage('scene', {
@@ -736,7 +789,8 @@ wss.on('connection', (ws, req) => {
             // 2. Generate and send binary audio data via dispatcher
             const audioPromise = generateNarrationAudio({
               text: chunkText,
-              outputMode: currentOutputMode
+              outputMode: currentOutputMode,
+              mood: scene.audio_mood || currentEmotion
             });
             const audioBuffer = await audioPromise;
 
@@ -774,6 +828,7 @@ wss.on('connection', (ws, req) => {
       }
 
       currentSpaceReading = '';
+      currentMythicReading = '';
 
       if (payload.image) {
         if (!validateBase64(payload.image)) {
@@ -788,10 +843,12 @@ wss.on('connection', (ws, req) => {
           const analysis = await analyzeSpace(spacePrompt, payload.image, payload.mimeType);
           emotion = analysis.detected_emotion || 'hope';
           currentSpaceReading = analysis.space_reading || '';
+          currentMythicReading = analysis.mythic_reading || currentSpaceReading;
 
           sendMessage('space_reading', {
             emotion,
             reading: currentSpaceReading,
+            mythicReading: currentMythicReading,
           });
           log(`Space analysis: detected emotion = ${emotion}`);
         } catch (err) {
@@ -802,6 +859,17 @@ wss.on('connection', (ws, req) => {
       }
 
       currentEmotion = emotion;
+
+      if (typeof payload.localHour === 'number') {
+        const h = payload.localHour;
+        if (h >= 5 && h < 12) currentTimeOfDay = 'Morning';
+        else if (h >= 12 && h < 17) currentTimeOfDay = 'Afternoon';
+        else if (h >= 17 && h < 20) currentTimeOfDay = 'Evening';
+        else currentTimeOfDay = 'Night';
+      } else {
+        currentTimeOfDay = null;
+      }
+
       emotionHistory = [emotion];
       sceneCount = 0;
       currentSecretEndingKey = null;
@@ -814,11 +882,17 @@ wss.on('connection', (ws, req) => {
       const introParts = [
         { text: `Emotion: ${emotion}. Output mode: ${currentOutputMode}. Start the story.` },
       ];
+      if (payload.custom_context) {
+        introParts.push({ text: `Custom emotional context from user: "${payload.custom_context}".` });
+      }
       if (currentWhisperText) {
         introParts.push({ text: `Whispered seed: "${currentWhisperText}".` });
       }
       if (currentSpaceReading) {
         introParts.push({ text: `Space reading: ${currentSpaceReading}` });
+      }
+      if (currentMythicReading && currentMythicReading !== currentSpaceReading) {
+        introParts.push({ text: `Mythic reading: ${currentMythicReading}` });
       }
       if (memoryContext) {
         introParts.push({ text: memoryContext });
@@ -837,7 +911,7 @@ wss.on('connection', (ws, req) => {
       log(`Starting story with emotion=${emotion}, mode=${currentOutputMode}`);
       sendMessage('status', { text: uiStrings.shapingStory });
 
-      const systemPrompt = buildStorytellerPrompt(emotion, false, currentOutputMode);
+      const systemPrompt = buildStorytellerPrompt(emotion, false, currentOutputMode, false, null, null, currentTimeOfDay);
       const scenes = await generateScenesResilient({
         purpose: 'start_story',
         systemPrompt,
@@ -848,6 +922,7 @@ wss.on('connection', (ws, req) => {
           outputMode: currentOutputMode,
           stage: 'opening',
           sceneNumber: 1,
+          mythicReading: currentMythicReading || currentSpaceReading,
         },
       });
 
@@ -889,6 +964,8 @@ wss.on('connection', (ws, req) => {
         emitVoteUpdate();
       }
 
+      const duoAlignment = Boolean(payload.duoAlignment);
+
       let choiceText = validateChoiceText(payload.choice_text || '');
       if (currentOutputMode.startsWith('ar')) {
         const { normalizeArabicText } = await import('./services/utils.js');
@@ -903,7 +980,10 @@ wss.on('connection', (ws, req) => {
 
       conversationHistory.push({
         role: 'user',
-        parts: [{ text: `User chose: "${choiceText}". Emotion shift: ${emotionShift}. Continue the story.` }],
+        parts: [
+          { text: `User chose: "${choiceText}". Emotion shift: ${emotionShift}. Continue the story.` },
+          ...buildSymbolicContinuityParts(),
+        ],
       });
 
       log(`User choice received: "${choiceText}" | mode=${currentOutputMode}`);
@@ -927,6 +1007,8 @@ wss.on('connection', (ws, req) => {
         isNearEnd,
         null,
         secretEnding,
+        currentTimeOfDay,
+        duoAlignment,
       );
 
       const scenes = await generateScenesResilient({
@@ -941,6 +1023,7 @@ wss.on('connection', (ws, req) => {
           choiceText,
           sceneNumber: sceneCount + 1,
           allowFinalEnding: isNearEnd,
+          mythicReading: currentMythicReading || currentSpaceReading,
         },
       });
 
@@ -970,6 +1053,7 @@ wss.on('connection', (ws, req) => {
       }
 
       currentSceneVersion += 1;
+      const symbolicContinuityParts = buildSymbolicContinuityParts();
       // 1. Abort current background generation (images + TTS)
       abortController.abort();
       abortController = new AbortController();
@@ -1005,7 +1089,10 @@ wss.on('connection', (ws, req) => {
       // We explicitly log this as a surgical memory command in context
       conversationHistory.push({
         role: 'user',
-        parts: [{ text: `[LIVE REDIRECTION] Cancel the previous trajectory. Hard pivot tone/pacing to "${command}" with intensity ${intensity}. Regenerate seamlessly from scene ${sceneId}, index ${atIndex}. Output exactly 1 scene.` }]
+        parts: [
+          { text: `[LIVE REDIRECTION] Cancel the previous trajectory. Hard pivot tone/pacing to "${command}" with intensity ${intensity}. Regenerate seamlessly from scene ${sceneId}, index ${atIndex}. Output exactly 1 scene.` },
+          ...symbolicContinuityParts,
+        ]
       });
 
       const scenes = await generateScenesResilient({
@@ -1019,6 +1106,7 @@ wss.on('connection', (ws, req) => {
           stage: 'redirect',
           redirectCommand: command,
           sceneNumber: sceneCount + 1,
+          mythicReading: currentMythicReading || currentSpaceReading,
         },
       });
 
@@ -1271,6 +1359,7 @@ wss.on('connection', (ws, req) => {
         choice_text: selectedVote.choiceText,
         emotion_shift: selectedVote.emotionShift,
         output_mode: selectedVote.outputMode,
+        duoAlignment: true,
       });
     }
   };

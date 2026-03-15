@@ -29,7 +29,28 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
     triumphant_rise: { r: 255, g: 215, b: 0, speed: 0.3 },
   };
 
+  const isShatteringRef = useRef(false);
+
+  // Define profound mood shifts that trigger shattering
+  const isSevereShift = (oldMood, newMood) => {
+    const opposites = {
+      hope: ['nightmare', 'anger', 'anxiety'],
+      ambient_calm: ['tense_drone'],
+      wonder: ['confusion', 'loneliness'],
+    };
+    return opposites[oldMood]?.includes(newMood) || opposites[newMood]?.includes(oldMood);
+  };
+
   useEffect(() => {
+    if (moodRef.current && moodRef.current !== mood && isSevereShift(moodRef.current, mood)) {
+      isShatteringRef.current = true;
+      setTimeout(() => {
+        isShatteringRef.current = false;
+        if (canvasRef.current) {
+          canvasRef.current.classList.remove('scene-image--shatter');
+        }
+      }, 1800); // match animation duration
+    }
     moodRef.current = mood || 'ambient_calm';
   }, [mood]);
 
@@ -255,6 +276,11 @@ const StoryCanvas = forwardRef(({ mood, isStale = false, uiLanguage = 'ar', scen
       aria-label={sceneAltText || (uiLanguage === 'en' ? 'Story scene background' : 'خلفية مشهد القصة')}
       width={window.innerWidth}
       height={window.innerHeight}
+      className={[
+        'story-canvas',
+        `story-canvas--${String(mood || 'ambient_calm').replace(/_/g, '-')}`,
+        isShatteringRef.current ? 'scene-image--shatter' : '',
+      ].filter(Boolean).join(' ')}
       style={{
         display: 'block',
         position: 'fixed',
